@@ -1,2 +1,2 @@
 # fbrbsp
-Study conjunctions between FIREBIRD-II and RBSP missions
+Analyze conjunctions between FIREBIRD-II and RBSP missions
