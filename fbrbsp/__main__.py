@@ -5,40 +5,52 @@ import configparser
 import firebird
 
 # Run the configuration script with
-# python3 -m project [init, initialize, config, or configure]
+# python3 -m rbrbsp [init, initialize, config, or configure]
 
 here = pathlib.Path(__file__).parent.resolve()
 
-if (len(sys.argv) > 1) and (sys.argv[1] in ['init', 'initialize', 'config', 'configure']):
-    print('Running the configuration script.')
-    s = (
-        f'What is your project data directory? Press enter for the default '
-        f'directory at ~/project/ folder will be created.\n'
-    )
-    project_data_dir = input(s)
 
-    # If the user specified the directory, check that the directory already exists
-    # and make that directory if it does not.
-    if project_data_dir != '':
-        if not pathlib.Path(project_data_dir).exists():
-            pathlib.Path(project_data_dir).mkdir(parents=True)
-            print(f'Made project data directory at {pathlib.Path(project_data_dir)}.')
-        else:
-            print(f'The project data directory at {pathlib.Path(project_data_dir)} already exists.')
+def check_directory(dir_str, default_dir):
+    """
+    Checks if the user-specified dir_str is empty or not. If empty, it will 
+    check the default directory specified by ~/default_dir/.
+    """
+    if dir_str == '':
+        dir_path = pathlib.Path(default_dir)
     else:
-        # If the user did not specify the directory, make one at ~/project/.
-        project_data_dir = pathlib.Path.home() / 'project'
-        if not project_data_dir.exists():
-            project_data_dir.mkdir(parents=True)
-            print(f'project directory at {project_data_dir} created.')
-        else:
-            print(f'project directory at {project_data_dir} already exists.')
+        dir_path = pathlib.Path(dir_str)
+    
+    if not pathlib.Path(dir_path).exists():
+        pathlib.Path(dir_path).mkdir(parents=True)
+        print(f'Made {dir_path} directory.')
+    else:
+        print(f'The {dir_path} directory already exists.')
+    return dir_path
+
+
+if (len(sys.argv) > 1) and (sys.argv[1] in ['init', 'initialize', 'config', 'configure']):
+    print('Running the fbrbsp configuration script.')
+    
+    s = (
+        f"Where is the FIREBIRD-II data directory? Press enter for the default "
+        f"directory ~/firebird-data/.\n"
+    )
+    fb_data_dir = input(s)
+    fb_data_dir = check_directory(fb_data_dir, pathlib.Path.home() / 'firebird-data')
+
+    s = (
+        f"Where is the RBSP data directory? Press enter for the default "
+        f"directory ~/rbsp-data/.\n"
+    )
+    rbsp_data_dir = input(s)
+    rbsp_data_dir = check_directory(rbsp_data_dir, pathlib.Path.home() / 'rbsp-data')
 
     # Create a configparser object and add the user configuration.
     config = configparser.ConfigParser()
     config['Paths'] = {
-        'project_dir':here,
-        'project_data_dir': project_data_dir
+        'here':here,
+        'fb_data_dir': fb_data_dir,
+        'rbsp_data_dir': rbsp_data_dir
         }
 
     with open(here / 'config.ini', 'w') as f:
@@ -46,7 +58,6 @@ if (len(sys.argv) > 1) and (sys.argv[1] in ['init', 'initialize', 'config', 'con
 
 else:
     print(
-        'This is a configuration script to set up config.ini file. The config '
-        'file contains the project data directory, ~/project/ by '
-        'default. To configure this package, run python3 -m project config.'
+        'This is a configuration script to set up the fbrbsp package. To '
+        'configure this package run "python3 -m project config".'
     )

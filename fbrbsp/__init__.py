@@ -11,11 +11,12 @@ settings.read(here / 'config.ini')
 
 # Go here if config.ini exists (don't crash if the project is not yet configured.)
 if 'Paths' in settings:  
-    try:
-        fb_data_dir = settings['Paths']['fb_data_dir']
-        rbsp_data_dir = settings['Paths']['fb_data_dir']
-    except KeyError as err:
-        warnings.warn('The firebird package did not find the config.ini file. '
-            'Did you run "python3 -m firebird config"?')
+    fb_data_dir = settings['Paths'].get('fb_data_dir', None)
+    rbsp_data_dir = settings['Paths'].get('rbsp_data_dir', None)
 
-    config = {'here': here, 'fb_data_dir': fb_data_dir}
+if fb_data_dir is None:
+    fb_data_dir = pathlib.Path.home() / 'firebird-data'
+if rbsp_data_dir is None:
+    rbsp_data_dir = pathlib.Path.home() / 'rbsp-data'
+
+config = {'here': here, 'fb_data_dir': fb_data_dir, 'rbsp_data_dir':rbsp_data_dir}
