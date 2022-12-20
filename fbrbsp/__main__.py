@@ -2,10 +2,8 @@ import sys
 import pathlib
 import configparser
 
-import firebird
-
 # Run the configuration script with
-# python3 -m rbrbsp [init, initialize, config, or configure]
+# python3 -m fbrbsp [init, initialize, config, or configure]
 
 here = pathlib.Path(__file__).parent.resolve()
 
