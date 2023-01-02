@@ -11,8 +11,8 @@ settings.read(here / 'config.ini')
 
 # "Paths" only exist if config.ini exists
 if settings.has_section('Paths'):
-    fb_data_dir = settings['Paths'].get('fb_data_dir', None)
-    rbsp_data_dir = settings['Paths'].get('rbsp_data_dir', None)
+    fb_data_dir = pathlib.Path(settings['Paths'].get('fb_data_dir', None))
+    rbsp_data_dir = pathlib.Path(settings['Paths'].get('rbsp_data_dir', None))
 
 else:
     fb_data_dir = pathlib.Path.home() / 'firebird-data'
