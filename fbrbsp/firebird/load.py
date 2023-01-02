@@ -1,5 +1,4 @@
 import json
-import pathlib
 import dateutil.parser
 
 import numpy as np
@@ -24,7 +23,11 @@ class Hires:
 
     Example
     -------
-    hr = Hires(3, '2015-02-02').load()
+    >>> hr = Hires(3, '2015-02-02').load()
+    >>> print(hr.keys())
+    dict_keys(['Time', 'Alt', 'Col_counts', 'Col_flux', 'Count_Time_Correction', 
+    'Flag', 'Lat', 'Lon', 'Loss_cone_type', 'MLT', 'McIlwainL', 'Sur_counts', 
+    'Sur_flux', 'kp'])
     """
     def __init__(self, sc_id, load_date) -> None:
         self.sc_id = sc_id
@@ -129,8 +132,3 @@ class fb_dict(dict):
         self.update(*args, **kwargs)
         self.attrs = {}
         return
-
-
-if __name__ == "__main__":
-    hr = Hires(3, '2015-02-02').load()
-    pass
