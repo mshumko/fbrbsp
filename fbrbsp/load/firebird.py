@@ -7,7 +7,7 @@ import sampex
 
 import fbrbsp
 
-data_url = 'https://solar.physics.montana.edu/FIREBIRD_II/'
+base_data_url = 'https://solar.physics.montana.edu/FIREBIRD_II/'
 
 class Hires:
     """
@@ -54,14 +54,14 @@ class Hires:
         elif len(local_files) == 0:
             # File not found locally. Check online.
             downloader = sampex.Downloader(
-                f'https://solar.physics.montana.edu/FIREBIRD_II/Data/FU_{self.sc_id}/hires/',
+                base_data_url + f'/Data/FU_{self.sc_id}/hires/',
                 download_dir=fbrbsp.config["fb_data_dir"] / f'FU_{self.sc_id}' / 'hires'
                 )
             matched_downloaders = downloader.ls(match=self._file_match)
             self.file_path = matched_downloaders[0].download() 
         else:
             raise FileNotFoundError(
-                f'{len(local_files)} HILT files found locally and online that match {self._file_match}.'
+                f'{len(local_files)} FIREBIRD HiRes files found locally and online that match {self._file_match}.'
                 )
         return self.file_path
 
@@ -132,3 +132,7 @@ class fb_dict(dict):
         self.update(*args, **kwargs)
         self.attrs = {}
         return
+
+hr = Hires(3, '2015-02-02').load()
+print(hr)
+pass
