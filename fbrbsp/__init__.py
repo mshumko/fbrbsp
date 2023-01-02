@@ -5,7 +5,7 @@ import configparser
 __version__ = '0.0.1'
 
 # Load the configuration settings.
-here = pathlib.Path(__file__).parents[1].resolve()
+here = pathlib.Path(__file__).parent.resolve()
 settings = configparser.ConfigParser()
 settings.read(here / 'config.ini')
 
