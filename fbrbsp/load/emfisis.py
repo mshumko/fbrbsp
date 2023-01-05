@@ -4,10 +4,11 @@ import dateutil.parser
 import numpy as np
 import pandas as pd
 import sampex
+import cdflib
 
 import fbrbsp
 
-base_data_url = 'https://emfisis.physics.uiowa.edu/Flight/'
+base_data_url = 'https://spdf.gsfc.nasa.gov/pub/data/rbsp/'
 
 class Emfisis_spec:
     """
@@ -30,6 +31,8 @@ class Emfisis_spec:
         self.sc_id = sc_id.lower()
         self.inst = inst.lower()
         assert self.inst in ['wfr', 'hfr']
+        if self.inst != 'wfr':
+            raise NotImplementedError(f'{self.inst} is not implemented.')
         if isinstance(load_date, str):
             self.load_date = dateutil.parser.parse(load_date)
         else:
@@ -40,10 +43,10 @@ class Emfisis_spec:
         """
         Searches for and loads the HiRes data into memory.
         """
-        self._file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.upper()}-'
-            f'spectral-matrix-diagonal_emfisis-L2_{self.load_date:%Y%m%d}_v*.cdf')
-        self.file_path = self._find_file()   
-        return
+        self._file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
+            f'spectral-matrix-diagonal-merged_emfisis-l2_{self.load_date:%Y%m%d}_v*.cdf')
+        self.file_path = self._find_file()
+        return cdflib.CDF(self.file_path)
 
     def _find_file(self):
         local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(self._file_match))
@@ -52,7 +55,10 @@ class Emfisis_spec:
             self.file_path = local_files[0]
         elif len(local_files) == 0:
             # File not found locally. Check online.
-            url = base_data_url + f'RBSP-{self.sc_id.upper()}/L2/{self.load_date.strftime("%Y/%m/%d/")}'
+            url = (base_data_url + 
+                f'rbsp{self.sc_id.lower()}/l2/emfisis/wfr/'+
+                f'spectral-matrix-diagonal-merged/{self.load_date.year}/'
+                )
             downloader = sampex.Downloader(
                 url,
                 download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis'
@@ -68,3 +74,4 @@ class Emfisis_spec:
 
 if __name__ == '__main__':
     emfisis = Emfisis_spec('A', 'WFR', '2015-02-02').load()
+    pass
