@@ -16,7 +16,7 @@ m_e = 9.1E-31
 
 class Spec:
     """
-    Load a day of EMFISIS L2 spectrum data from the computer or the internet.
+    Loads and plots a day of EMFISIS L2 spectrum data.
 
     Parameters
     ----------
@@ -26,6 +26,15 @@ class Spec:
         Select between the wfr or hfr instruments.
     load_date: datetime.datetime, pd.Timestamp
         The date to load the data.
+
+    Methods
+    -------
+    load()
+        Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
+        data into memory.
+    spectrum(component='BuBu', fce=True, ax=None, pcolormesh_kwargs=None)
+        Plots a component of the EMFISIS WFR spectrum (controlled via the component 
+        kwarg) with optional f_ce lines superposed.
 
     Example
     -------
@@ -62,7 +71,8 @@ class Spec:
 
     def load(self):
         """
-        Searches for and loads the HiRes data into memory.
+        Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
+        data into memory.
         """
         self._file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
             f'spectral-matrix-diagonal-merged_emfisis-l2_{self.load_date:%Y%m%d}_v*.cdf')
@@ -97,7 +107,8 @@ class Spec:
 
     def spectrum(self, component='BuBu', fce=True, ax=None, pcolormesh_kwargs=None):
         """
-        Plots a EMFISIS WFR spectrum.
+        Plots a component of the EMFISIS WFR spectrum (controlled via the component 
+        kwarg) with optional f_ce lines superposed.
 
         Parameters
         ----------
