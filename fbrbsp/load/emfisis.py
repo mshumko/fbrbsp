@@ -3,6 +3,8 @@ import dateutil.parser
 
 import numpy as np
 import pandas as pd
+import matplotlib.colors
+import matplotlib.pyplot as plt
 import sampex
 import cdflib
 
@@ -46,7 +48,9 @@ class Emfisis_spec:
         self._file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
             f'spectral-matrix-diagonal-merged_emfisis-l2_{self.load_date:%Y%m%d}_v*.cdf')
         self.file_path = self._find_file()
-        return cdflib.CDF(self.file_path)
+        self.cdf = cdflib.CDF(self.file_path)
+        self.epoch = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
+        return self.cdf
 
     def _find_file(self):
         local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(self._file_match))
@@ -72,6 +76,38 @@ class Emfisis_spec:
                 )
         return self.file_path
 
+    def spectrum(self, component='BuBu', ax=None, pcolormesh_kwargs=None):
+        """
+        Plots a EMFISIS WFR spectrum.
+
+        Parameters
+        ----------
+        component: str
+            The magnetic or electric field component. Can be one of
+            'BuBu', 'BvBv', 'BwBw', 'EuEu', 'EvEv', or 'EwEw'.
+        ax: plt.Axes
+            A subplot to plot on.
+        pcolormesh_kwarg: dict
+            The keyword arguments to pass into plt.pcolormesh. By default
+            the only setting is a logarithmic color scale.
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        if pcolormesh_kwargs is None:
+            pcolormesh_kwargs = {
+                'norm':matplotlib.colors.LogNorm()
+            }
+
+        p = ax.pcolormesh(self.epoch, self.cdf['WFR_frequencies'].flatten(), 
+            self.cdf[component].T, shading='auto', **pcolormesh_kwargs)
+
+        return p, ax
+
 if __name__ == '__main__':
-    emfisis = Emfisis_spec('A', 'WFR', '2015-02-02').load()
+    emfisis = Emfisis_spec('A', 'WFR', '2015-02-02')
+    emfisis.load()
+    p, ax = emfisis.spectrum()
+    plt.colorbar(p)
+    plt.show()
     pass
