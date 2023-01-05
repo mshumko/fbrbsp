@@ -161,9 +161,22 @@ class Mag:
     load_date: datetime.datetime, pd.Timestamp
         The date to load the data.
 
+    Methods
+    -------
+    load()
+        Searches for and loads the Mag data into memory.
+    fce()
+        Calculate the electron gyrofrequency.
+
     Example
     -------
-    
+    >>> # Calculate the electron gyrofrequency during the conjunction analyzed by
+    >>> # Breneman et al., (2017) https://doi.org/10.1002/2017GL075001
+    >>> q_e = -1.6E-19
+    >>> m_e = 9.1E-31
+    >>> mag = Mag('A', '2016-01-20')
+    >>> mag.load()
+    >>> fce = mag.fce()
     """
     def __init__(self, sc_id, load_date) -> None:
         self.sc_id = sc_id.lower()
@@ -175,7 +188,7 @@ class Mag:
 
     def load(self):
         """
-        Searches for and loads the HiRes data into memory.
+        Searches for and loads the Mag data into memory.
         """
         # rbsp-a_magnetometer_uvw_emfisis-l2_20160101_v1.6.4.cdf
         self._file_match = (
@@ -186,6 +199,14 @@ class Mag:
         self.cdf = cdflib.CDF(self.file_path)
         self.epoch = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
         return self.cdf
+
+    def fce(self):
+        """
+        Calculate the electron gyrofrequency.
+        """
+        _fce = 1E-9*self.cdf['Magnitude']*np.abs(q_e)/(2*np.pi*m_e)
+        return _fce
+
 
     def _find_file(self):
         local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(self._file_match))
