@@ -231,3 +231,7 @@ class Mag:
                 f'found locally and online that match {self._file_match}.'
                 )
         return self.file_path
+
+class Burst:
+    def __init__(self) -> None:
+        pass
