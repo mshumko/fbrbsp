@@ -9,6 +9,7 @@ import sampex
 import cdflib
 
 import fbrbsp
+import fbrbsp.load.utils as utils
 
 base_data_url = 'https://spdf.gsfc.nasa.gov/pub/data/rbsp/'
 q_e = -1.6E-19
@@ -265,10 +266,7 @@ class Burst:
         assert self.inst in ['wfr', 'hfr']
         if self.inst != 'wfr':
             raise NotImplementedError(f'{self.inst} is not implemented.')
-        if isinstance(time_range[0], str):
-            self.time_range = [dateutil.parser.parse(t) for t in time_range]
-        else:
-            self.time_range = time_range
+        self.time_range = utils.validate_time_range(time_range)
         return
 
     def load(self):
@@ -276,16 +274,20 @@ class Burst:
         Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
         data into memory.
         """
-        self._file_match = (
-            f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
-            f'waveform-continuous-burst_emfisis-l2_'
-            f'{self.load_date.strftime("%Y%m%dt%H")}_v*.cdf'
-            )
-        self.file_path = self._find_file()
-        self.cdf = cdflib.CDF(self.file_path)
-        self._burst_start = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
-        self.epoch = pd.Timestamp(self._burst_start[0]) + \
-            pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+        file_dates = utils.get_filename_times(self.time_range)
+
+        for file_date in file_dates:
+            # TODO: Make self.cdf a dict.
+            self._file_match = (
+                f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
+                f'waveform-continuous-burst_emfisis-l2_'
+                f'{self.load_date.strftime("%Y%m%dt%H")}_v*.cdf'
+                )
+            self.file_path = self._find_file()
+            self.cdf = cdflib.CDF(self.file_path)
+            self._burst_start = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
+            self.epoch = pd.Timestamp(self._burst_start[0]) + \
+                pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
         return self.cdf
 
     def _find_file(self):
@@ -312,15 +314,8 @@ class Burst:
                 )
         return self.file_path
 
-    def _get_file_times(self):
-        """
-        Get the time range of files.
-        """
-
-        return
-
 
 if __name__ == '__main__':
-    burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
+    burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
     burst.load()
     pass
