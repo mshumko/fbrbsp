@@ -233,5 +233,88 @@ class Mag:
         return self.file_path
 
 class Burst:
-    def __init__(self) -> None:
-        pass
+    """
+    Loads and plots EMFISIS L2 waveform-continuous-burst data.
+
+    Parameters
+    ----------
+    sc_id: str
+        The spacecraft id, can be either A or B, case insensitive.
+    inst: str
+        Select between the wfr or hfr instruments.
+    load_date: datetime.datetime, pd.Timestamp
+        The date to load the data.
+
+    Methods
+    -------
+    load()
+        Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
+        data into memory.
+    spectrum()
+
+    Example
+    -------
+    >>> # Replicate Fig. 2e from Breneman et al., (2017) 
+    >>> # https://doi.org/10.1002/2017GL075001
+    >>> emfisis = Burst('A', 'WFR', '2016-01-20T19:00')
+    >>> emfisis.load()
+    """
+    def __init__(self, sc_id, inst, load_date) -> None:
+        self.sc_id = sc_id.lower()
+        self.inst = inst.lower()
+        assert self.inst in ['wfr', 'hfr']
+        if self.inst != 'wfr':
+            raise NotImplementedError(f'{self.inst} is not implemented.')
+        if isinstance(load_date, str):
+            self.load_date = dateutil.parser.parse(load_date)
+        else:
+            self.load_date = load_date
+        return
+
+    def load(self):
+        """
+        Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
+        data into memory.
+        """
+        self._file_match = (
+            f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
+            f'waveform-continuous-burst_emfisis-l2_'
+            f'{self.load_date.strftime("%Y%m%dt%H")}_v*.cdf'
+            )
+        self.file_path = self._find_file()
+        self.cdf = cdflib.CDF(self.file_path)
+        self._burst_start = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
+        self.epoch = np.nan*np.zeros(self.cdf['timeOffsets'].shape[0])
+        self.epoch = pd.Timestamp(self._burst_start[0]) + \
+            pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+        return self.cdf
+
+    def _find_file(self):
+        local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(self._file_match))
+
+        if len(local_files) == 1:
+            self.file_path = local_files[0]
+        elif len(local_files) == 0:
+            # File not found locally. Check online.
+            url = (base_data_url + 
+                f'rbsp{self.sc_id.lower()}/l2/emfisis/wfr/'+
+                f'waveform-continuous-burst/{self.load_date.year}/'
+                )
+            downloader = sampex.Downloader(
+                url,
+                download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis' / self.inst
+                )
+            matched_downloaders = downloader.ls(match=self._file_match)
+            self.file_path = matched_downloaders[0].download() 
+        else:
+            raise FileNotFoundError(
+                f'{len(local_files)} RBSP-{self.sc_id.upper()} EMFISIS files '
+                f'found locally and online that match {self._file_match}.'
+                )
+        return self.file_path
+
+
+if __name__ == '__main__':
+    burst = Burst('A', 'WFR', '2016-01-20T19:00')
+    burst.load()
+    pass
