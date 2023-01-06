@@ -242,8 +242,8 @@ class Burst:
         The spacecraft id, can be either A or B, case insensitive.
     inst: str
         Select between the wfr or hfr instruments.
-    load_date: datetime.datetime, pd.Timestamp
-        The date to load the data.
+    time_range: datetime.datetime, pd.Timestamp
+        The time range to load the data.
 
     Methods
     -------
@@ -256,19 +256,19 @@ class Burst:
     -------
     >>> # Replicate Fig. 2e from Breneman et al., (2017) 
     >>> # https://doi.org/10.1002/2017GL075001
-    >>> emfisis = Burst('A', 'WFR', '2016-01-20T19:00')
+    >>> emfisis = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
     >>> emfisis.load()
     """
-    def __init__(self, sc_id, inst, load_date) -> None:
+    def __init__(self, sc_id, inst, time_range) -> None:
         self.sc_id = sc_id.lower()
         self.inst = inst.lower()
         assert self.inst in ['wfr', 'hfr']
         if self.inst != 'wfr':
             raise NotImplementedError(f'{self.inst} is not implemented.')
-        if isinstance(load_date, str):
-            self.load_date = dateutil.parser.parse(load_date)
+        if isinstance(time_range[0], str):
+            self.time_range = [dateutil.parser.parse(t) for t in time_range]
         else:
-            self.load_date = load_date
+            self.time_range = time_range
         return
 
     def load(self):
@@ -284,7 +284,6 @@ class Burst:
         self.file_path = self._find_file()
         self.cdf = cdflib.CDF(self.file_path)
         self._burst_start = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
-        self.epoch = np.nan*np.zeros(self.cdf['timeOffsets'].shape[0])
         self.epoch = pd.Timestamp(self._burst_start[0]) + \
             pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
         return self.cdf
@@ -313,8 +312,15 @@ class Burst:
                 )
         return self.file_path
 
+    def _get_file_times(self):
+        """
+        Get the time range of files.
+        """
+
+        return
+
 
 if __name__ == '__main__':
-    burst = Burst('A', 'WFR', '2016-01-20T19:00')
+    burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
     burst.load()
     pass
