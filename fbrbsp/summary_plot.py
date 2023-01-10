@@ -28,10 +28,11 @@ class Summary:
             print(f'Created plotting directory at {self.save_path}')
         pass
 
-    def loop(self, survey_pad_min=60, zoom_pad_min=6):
-        self._init_plot()
+    def loop(self, survey_pad_min=60, zoom_pad_min=4):
+        # self._init_plot()
 
         for start_time, end_time in zip(self.catalog['startTime'], self.catalog['endTime']):
+            self._init_plot()
             survey_time_range = (
                 start_time-timedelta(minutes=survey_pad_min/2),
                 end_time+timedelta(minutes=survey_pad_min/2)
@@ -47,10 +48,11 @@ class Summary:
 
             save_name = (
                 f'{start_time:%Y%m%d_%H%M%S}_{end_time:%H%M%S}_RBSP{self.rbsp_id.upper()}'
-                f'_FB{self.fb_id}_summary_plot.png'
+                f'_FB{self.fb_id}_conjunction_summary.png'
                 )
             plt.savefig(self.save_path / save_name)
-            self._clear_plot()
+            # self._clear_plot()
+            plt.close()
         return
 
     def _init_plot(self):
@@ -86,7 +88,7 @@ class Summary:
         for i in range(6):
             ax.plot(hr['Time'], hr['Col_counts'][:, i])
         ax.set_xlim(zoom_time_range)
-        ax.set_ylim('log')
+        ax.set_yscale('log')
         return
 
     def _clear_plot(self):
