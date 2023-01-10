@@ -25,8 +25,8 @@ class Spec:
         The spacecraft id, can be either A or B, case insensitive.
     inst: str
         Select between the wfr or hfr instruments.
-    load_date: datetime.datetime, pd.Timestamp
-        The date to load the data.
+    time_range: list[str, datetime.datetime, or pd.Timestamp]
+        A list, array, or tuple defining the date and time bounds to load.
 
     Methods
     -------
@@ -41,49 +41,59 @@ class Spec:
     -------
     >>> # Replicate Fig. 2c from Breneman et al., (2017) 
     >>> # https://doi.org/10.1002/2017GL075001
-    >>> emfisis = Spec('A', 'WFR', '2016-01-20')
+    >>> emfisis = Spec('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
     >>> emfisis.load()
     >>> p, ax = emfisis.spectrum(
     >>>     pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-8, vmax=1E-4)}
     >>>     )
     >>> plt.colorbar(p)
     >>> ax.set_yscale('log')
-    >>> ax.set_xlim(
-    >>>     dateutil.parser.parse('2016-01-20T19:00'),
-    >>>     dateutil.parser.parse('2016-01-20T20:00')
-    >>>     )
     >>> ax.set_ylim(
     >>>     np.min(emfisis.cdf['WFR_frequencies']), 
     >>>     np.max(emfisis.cdf['WFR_frequencies'])
     >>>     )
     >>> plt.show()
     """
-    def __init__(self, sc_id, inst, load_date) -> None:
+    def __init__(self, sc_id, inst, time_range) -> None:
         self.sc_id = sc_id.lower()
         self.inst = inst.lower()
+        self.time_range = time_range
         assert self.inst in ['wfr', 'hfr']
         if self.inst != 'wfr':
             raise NotImplementedError(f'{self.inst} is not implemented.')
-        if isinstance(load_date, str):
-            self.load_date = dateutil.parser.parse(load_date)
-        else:
-            self.load_date = load_date
+        self.time_range = utils.validate_time_range(time_range)
         return
 
-    def load(self):
+    def load(self, missing_ok=True):
         """
         Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
         data into memory.
         """
-        self._file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
-            f'spectral-matrix-diagonal-merged_emfisis-l2_{self.load_date:%Y%m%d}_v*.cdf')
-        self.file_path = self._find_file()
-        self.cdf = cdflib.CDF(self.file_path)
-        self.epoch = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
-        return self.cdf
+        file_dates = utils.get_filename_times(self.time_range, dt='days')
+        self.data = {'epoch':np.array([], dtype=object)}
 
-    def _find_file(self):
-        local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(self._file_match))
+        for file_date in file_dates:
+            try:
+                file_path = self._find_file(file_date)
+            except FileNotFoundError as err:
+                if missing_ok and ('EMFISIS files found locally and online' in str(err)):
+                    continue
+                else:
+                    raise
+            self.data[file_date] = cdflib.CDF(file_path)
+            self.data['epoch'] = np.append(
+                self.data['epoch'],
+                np.array(cdflib.cdfepoch.to_datetime(self.data[file_date]['epoch']))
+            )
+            if not hasattr(self, 'keys'):
+                self.cdf_keys = self.data[file_date].cdf_info('zVariables')
+        
+        return self.data
+
+    def _find_file(self, file_date):
+        _file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
+            f'spectral-matrix-diagonal-merged_emfisis-l2_{file_date:%Y%m%d}_v*.cdf')
+        local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(_file_match))
 
         if len(local_files) == 1:
             self.file_path = local_files[0]
@@ -97,14 +107,29 @@ class Spec:
                 url,
                 download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis'
                 )
-            matched_downloaders = downloader.ls(match=self._file_match)
+            matched_downloaders = downloader.ls(match=_file_match)
             self.file_path = matched_downloaders[0].download() 
         else:
             raise FileNotFoundError(
                 f'{len(local_files)} RBSP-{self.sc_id.upper()} EMFISIS files '
-                f'found locally and online that match {self._file_match}.'
+                f'found locally and online that match {_file_match}.'
                 )
         return self.file_path
+
+    def __getitem__(self, _slice):
+        """
+        Access the cdf variables using keys (i.e., ['key']).
+        """
+        if isinstance(_slice, str):
+            if ("epoch" in _slice.lower()) or ("time" in _slice.lower()):
+                return self.data['epoch']
+            elif _slice in self.cdf_keys:
+                # Create empty array to fill with the spectrum
+                _shape = self.data[self.data.keys()[0]][_slice].shape
+                _data = -1*np.ones((len(self.data)*_shape[0], _shape[1]), dtype=float)
+                for cdf_file in self.data.values:
+                    return
+
 
     def spectrum(self, component='BuBu', fce=True, ax=None, pcolormesh_kwargs=None):
         """
@@ -347,7 +372,26 @@ class Burst:
 
 
 if __name__ == '__main__':
-    burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
-    burst.load()
-    print(burst['epoch'])
-    pass
+    # burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
+    # burst.load()
+    # print(burst['epoch'])
+    # pass
+
+    # Replicate Fig. 2c from Breneman et al., (2017) 
+    # https://doi.org/10.1002/2017GL075001
+    emfisis = Spec('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
+    emfisis.load()
+    p, ax = emfisis.spectrum(
+        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-8, vmax=1E-4)}
+        )
+    plt.colorbar(p)
+    ax.set_yscale('log')
+    # ax.set_xlim(
+    #     dateutil.parser.parse('2016-01-20T19:00'),
+    #     dateutil.parser.parse('2016-01-20T20:00')
+    #     )
+    ax.set_ylim(
+        np.min(emfisis.cdf['WFR_frequencies']), 
+        np.max(emfisis.cdf['WFR_frequencies'])
+        )
+    plt.show()
