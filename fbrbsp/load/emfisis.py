@@ -120,16 +120,16 @@ class Spec:
             the only setting is a logarithmic color scale.
         """
         if ax is None:
-            fig, self.ax = plt.subplots()
+            fig, ax = plt.subplots()
         else:
-            self.ax = ax
+            ax = ax
 
         if pcolormesh_kwargs is None:
             pcolormesh_kwargs = {
                 'norm':matplotlib.colors.LogNorm()
             }
 
-        p = self.ax.pcolormesh(self['epoch'], self.WFR_frequencies, 
+        p = ax.pcolormesh(self['epoch'], self.WFR_frequencies, 
             self[component].T, shading='auto', **pcolormesh_kwargs)
 
         if fce:
@@ -137,8 +137,8 @@ class Spec:
             mag_data.load()
             _fce = mag_data.fce()
             for multiple in [1, 0.5, 0.1]:
-                self.ax.plot(mag_data['Epoch'][::100], multiple*_fce[::100], c='k')
-        return p, self.ax
+                ax.plot(mag_data['Epoch'][::100], multiple*_fce[::100], c='k')
+        return p, ax
 
     def _find_file(self, file_date):
         _file_match = (f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
