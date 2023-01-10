@@ -40,9 +40,10 @@ class Summary:
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
-            emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
-            emfisis_spec.load()
-            emfisis_spec.spectrum(ax=self.ax[0, 0])
+            self._plot_emfisis_spec(self.ax[0,0], self.ax[0,1], 
+                survey_time_range, zoom_time_range
+                )
+            self._plot_firebird(self.ax[1,1], zoom_time_range)
 
             save_name = (
                 f'{start_time:%Y%m%d_%H%M%S}_{end_time:%H%M%S}_RBSP{self.rbsp_id.upper()}'
@@ -61,6 +62,30 @@ class Summary:
         for i in range(self.n_rows):
             for j in range(self.n_cols):
                 self.ax[i,j] = self.fig.add_subplot(spec[i, j])
+        return
+
+    def _plot_emfisis_spec(self, ax, bx, survey_time_range, zoom_time_range):
+        emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
+        emfisis_spec.load()
+        emfisis_spec.spectrum(ax=ax)
+        emfisis_spec.spectrum(ax=bx)
+
+        ax.set_ylim(
+            np.min(emfisis_spec.WFR_frequencies), 
+            np.max(emfisis_spec.WFR_frequencies)
+        )
+        bx.set_ylim(
+            np.min(emfisis_spec.WFR_frequencies), 
+            np.max(emfisis_spec.WFR_frequencies)
+        )
+        bx.set_xlim(zoom_time_range)
+        return
+
+    def _plot_firebird(self, ax, zoom_time_range):
+        hr = Hires(self.fb_id, zoom_time_range[0]).load()
+        for i in range(6):
+            ax.plot(hr['Time'], hr['Col_counts'][:, i])
+        ax.set_xlim(zoom_time_range)
         return
 
     def _clear_plot(self):
