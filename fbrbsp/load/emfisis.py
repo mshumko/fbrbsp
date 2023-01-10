@@ -271,27 +271,58 @@ class Burst:
 
     def load(self):
         """
-        Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
+        Searches for and loads the L2 EMFISIS waveform-continuous-burst 
         data into memory.
         """
         file_dates = utils.get_filename_times(self.time_range)
+        self.data = {'epoch':np.array([], dtype=object)}
 
         for file_date in file_dates:
-            # TODO: Make self.cdf a dict.
-            self._file_match = (
-                f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
-                f'waveform-continuous-burst_emfisis-l2_'
-                f'{self.load_date.strftime("%Y%m%dt%H")}_v*.cdf'
-                )
-            self.file_path = self._find_file()
-            self.cdf = cdflib.CDF(self.file_path)
-            self._burst_start = np.array(cdflib.cdfepoch.to_datetime(self.cdf['epoch']))
-            self.epoch = pd.Timestamp(self._burst_start[0]) + \
-                pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+            file_path = self._find_file(file_date)
+            self.data[file_date] = cdflib.CDF(file_path)
+            self.data['epoch_start'] = np.append(
+                self.data['epoch_start'],
+                np.array(cdflib.cdfepoch.to_datetime(self.data[file_date]['epoch']))
+            )
+            # self.epoch = pd.Timestamp(self._burst_start[0]) + \
+            #     pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
         return self.cdf
 
-    def _find_file(self):
-        local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(self._file_match))
+    def __getitem__(self, _slice):
+        """
+        Access the cdf variables using keys (i.e., ['key']).
+        """
+        if isinstance(_slice, str):
+            # TODO: Finish this.
+            if "epoch_start" in _slice.lower():
+                # Start of each 6-second interval
+                idt = np.where(
+                    (self.data['epoch_start'] > self.time_range[0]) & 
+                    (self.data['epoch_start'] < self.time_range[1])
+                    )[0]
+                return self.data['epoch_start'][idt]
+            elif 'epoch' in _slice.lower():
+                # Calculate all epochs (time intensive for long durations).
+                _epoch_dict = {}
+                for _epoch_start in self.data['epoch_start']:
+                    self.epoch = pd.Timestamp(_epoch_start) + \
+                        pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+            else:
+                try:
+                    return self.data[_slice].to_numpy()
+                except KeyError as err:
+                    raise KeyError(f'{_slice} slice is unrecognized. Try one'
+                        f' of these: {self.data.columns.to_numpy()}')
+        else:
+            raise KeyError(f'Slice must be str, not {type(_slice)}')
+
+    def _find_file(self, file_date):
+        _file_match = (
+                f'rbsp-{self.sc_id.lower()}_{self.inst.lower()}-'
+                f'waveform-continuous-burst_emfisis-l2_'
+                f'{file_date.strftime("%Y%m%dt%H")}_v*.cdf'
+                )
+        local_files = list(fbrbsp.config["rbsp_data_dir"].rglob(_file_match))
 
         if len(local_files) == 1:
             self.file_path = local_files[0]
@@ -299,13 +330,13 @@ class Burst:
             # File not found locally. Check online.
             url = (base_data_url + 
                 f'rbsp{self.sc_id.lower()}/l2/emfisis/wfr/'+
-                f'waveform-continuous-burst/{self.load_date.year}/'
+                f'waveform-continuous-burst/{file_date.year}/'
                 )
             downloader = sampex.Downloader(
                 url,
                 download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis' / self.inst
                 )
-            matched_downloaders = downloader.ls(match=self._file_match)
+            matched_downloaders = downloader.ls(match=_file_match)
             self.file_path = matched_downloaders[0].download() 
         else:
             raise FileNotFoundError(
@@ -318,4 +349,5 @@ class Burst:
 if __name__ == '__main__':
     burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
     burst.load()
+    print(burst['epoch'])
     pass
