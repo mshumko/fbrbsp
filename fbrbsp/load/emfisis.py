@@ -41,7 +41,7 @@ class Spec:
     -------
     >>> # Replicate Fig. 2c from Breneman et al., (2017) 
     >>> # https://doi.org/10.1002/2017GL075001
-    >>> emfisis = Spec('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
+    >>> emfisis = Spec('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
     >>> emfisis.load()
     >>> p, ax = emfisis.spectrum(
     >>>     pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-8, vmax=1E-4)}
@@ -49,8 +49,8 @@ class Spec:
     >>> plt.colorbar(p)
     >>> ax.set_yscale('log')
     >>> ax.set_ylim(
-    >>>     np.min(emfisis.cdf['WFR_frequencies']), 
-    >>>     np.max(emfisis.cdf['WFR_frequencies'])
+    >>>     np.min(emfisis.WFR_frequencies), 
+    >>>     np.max(emfisis.WFR_frequencies)
     >>>     )
     >>> plt.show()
     """
@@ -62,6 +62,7 @@ class Spec:
         if self.inst != 'wfr':
             raise NotImplementedError(f'{self.inst} is not implemented.')
         self.time_range = utils.validate_time_range(time_range)
+        self.spectrum_keys = ['BuBu', 'BvBv', 'BwBw', 'EuEu', 'EvEv', 'EwEw']
         return
 
     def load(self, missing_ok=True):
@@ -70,7 +71,8 @@ class Spec:
         data into memory.
         """
         file_dates = utils.get_filename_times(self.time_range, dt='days')
-        self.data = {'epoch':np.array([], dtype=object)}
+        self.data = {key:np.zeros((0, 65)) for key in self.spectrum_keys}
+        self.data['epoch'] = np.array([])
 
         for file_date in file_dates:
             try:
@@ -80,14 +82,23 @@ class Spec:
                     continue
                 else:
                     raise
-            self.data[file_date] = cdflib.CDF(file_path)
-            self.data['epoch'] = np.append(
+            _cdf = cdflib.CDF(file_path)
+            self.data['epoch'] = np.concatenate((
                 self.data['epoch'],
-                np.array(cdflib.cdfepoch.to_datetime(self.data[file_date]['epoch']))
-            )
-            if not hasattr(self, 'keys'):
-                self.cdf_keys = self.data[file_date].cdf_info('zVariables')
-        
+                np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch']))
+                )) 
+            for key in self.spectrum_keys:
+                self.data[key] = np.vstack((self.data[key], _cdf[key]))
+
+            if not hasattr(self, 'WFR_frequencies'):
+                self.WFR_frequencies = _cdf['WFR_frequencies'].flatten()
+
+        idt = np.where(
+            (self.data['epoch'] > self.time_range[0]) & (self.data['epoch'] <= self.time_range[1])
+            )[0]
+        self.data['epoch'] = self.data['epoch'][idt]
+        for key in self.spectrum_keys:
+            self.data[key] = self.data[key][idt, :]
         return self.data
 
     def _find_file(self, file_date):
@@ -101,7 +112,7 @@ class Spec:
             # File not found locally. Check online.
             url = (base_data_url + 
                 f'rbsp{self.sc_id.lower()}/l2/emfisis/wfr/'+
-                f'spectral-matrix-diagonal-merged/{self.load_date.year}/'
+                f'spectral-matrix-diagonal-merged/{file_date.year}/'
                 )
             downloader = sampex.Downloader(
                 url,
@@ -123,15 +134,15 @@ class Spec:
         if isinstance(_slice, str):
             if ("epoch" in _slice.lower()) or ("time" in _slice.lower()):
                 return self.data['epoch']
-            elif _slice in self.cdf_keys:
-                # Create empty array to fill with the spectrum
-                _shape = self.data[self.data.keys()[0]][_slice].shape
-                _data = -1*np.ones((len(self.data)*_shape[0], _shape[1]), dtype=float)
-                for cdf_file in self.data.values:
-                    return
+            elif _slice.lower() in [key.lower() for key in self.spectrum_keys]:
+                return self.data[_slice]
+            else:
+                raise IndexError(f'{_slice} is not in the EMFISIS spectrum data.')
+        else:
+            raise IndexError(f'Only slicing with integer keys is supported.')
 
 
-    def spectrum(self, component='BuBu', fce=True, ax=None, pcolormesh_kwargs=None):
+    def spectrum(self, component='BuBu', fce=False, ax=None, pcolormesh_kwargs=None):
         """
         Plots a component of the EMFISIS WFR spectrum (controlled via the component 
         kwarg) with optional f_ce lines superposed.
@@ -159,8 +170,8 @@ class Spec:
                 'norm':matplotlib.colors.LogNorm()
             }
 
-        p = self.ax.pcolormesh(self.epoch, self.cdf['WFR_frequencies'].flatten(), 
-            self.cdf[component].T, shading='auto', **pcolormesh_kwargs)
+        p = self.ax.pcolormesh(self['epoch'], self.WFR_frequencies, 
+            self[component].T, shading='auto', **pcolormesh_kwargs)
 
         if fce:
             mag_times, _fce = self._calc_fce()
@@ -386,12 +397,8 @@ if __name__ == '__main__':
         )
     plt.colorbar(p)
     ax.set_yscale('log')
-    # ax.set_xlim(
-    #     dateutil.parser.parse('2016-01-20T19:00'),
-    #     dateutil.parser.parse('2016-01-20T20:00')
-    #     )
     ax.set_ylim(
-        np.min(emfisis.cdf['WFR_frequencies']), 
-        np.max(emfisis.cdf['WFR_frequencies'])
+        np.min(emfisis.WFR_frequencies), 
+        np.max(emfisis.WFR_frequencies)
         )
     plt.show()
