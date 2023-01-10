@@ -132,7 +132,3 @@ class fb_dict(dict):
         self.update(*args, **kwargs)
         self.attrs = {}
         return
-
-hr = Hires(3, '2015-02-02').load()
-print(hr)
-pass
