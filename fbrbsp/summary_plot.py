@@ -86,6 +86,7 @@ class Summary:
         for i in range(6):
             ax.plot(hr['Time'], hr['Col_counts'][:, i])
         ax.set_xlim(zoom_time_range)
+        ax.set_ylim('log')
         return
 
     def _clear_plot(self):
