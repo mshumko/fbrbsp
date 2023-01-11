@@ -60,7 +60,7 @@ class Summary:
     def _init_plot(self):
         self.n_rows = 3
         self.n_cols = 2
-        self.fig = plt.figure(constrained_layout=True, figsize=(10, 8))
+        self.fig = plt.figure(constrained_layout=False, figsize=(12, 8))
         spec = gridspec.GridSpec(nrows=3, ncols=2, figure=self.fig)
         self.ax = np.zeros((self.n_rows, self.n_cols), dtype=object)
         for i in range(self.n_rows):
@@ -73,9 +73,9 @@ class Summary:
         self.ax[0,0].set_ylabel('Frequency')
         self.ax[0,1].set_ylabel('Frequency')
         self.ax[1,1].set_ylabel('Collimated\n[counts]')
-        self.ax[0,0].text(0, 1, 'EMFISIS WFR spectra')
-        self.ax[0,1].text(0, 1, 'EMFISIS WFR spectra')
-        self.ax[1,1].text(0, 1, 'FIREBIRD')
+        self.ax[0,0].text(0, 1, 'EMFISIS WFR spectra', transform=self.ax[0,0].transAxes)
+        self.ax[0,1].text(0, 1, 'EMFISIS WFR spectra', transform=self.ax[0,1].transAxes)
+        self.ax[1,1].text(0, 1, 'FIREBIRD', transform=self.ax[1,1].transAxes)
         return
 
     def _plot_emfisis_spec(self, ax, bx, survey_time_range, zoom_time_range):
