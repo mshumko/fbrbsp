@@ -419,11 +419,10 @@ class Burst:
                 'norm':matplotlib.colors.LogNorm()
             }
 
-        for _epoch_start, burst_samples in zip(self['spoch_start'], self[component]):
+        for _epoch_start, burst_samples in zip(self['epoch_start'], self[component]):
             f, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
-            # times = pd.Timestamp(_epoch_start) + \
-            #     pd.to_timedelta(self.data['timeOffsets'], unit='nanosecond')
-            p = ax.pcolormesh(t, f, 
+            times = pd.Timestamp(_epoch_start) + pd.to_timedelta(t, unit='second')
+            p = ax.pcolormesh(times, f, 
                 psd, shading='auto', **pcolormesh_kwargs)    
         
         if fce:
@@ -501,5 +500,7 @@ class Burst:
 if __name__ == '__main__':
     emfisis = Burst('A', 'WFR', ('2016-01-20T19:41', '2016-01-20T19:42'))
     emfisis.load()
-    emfisis['epoch']
+    # emfisis['epoch']
+    emfisis.spectrum(pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-2)})
+    plt.show()
     pass
