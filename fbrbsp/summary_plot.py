@@ -69,13 +69,19 @@ class Summary:
         return
     
     def _plot_labels(self, date):
-        plt.suptitle(f'{date:%Y%m%d} RBSP{self.rbsp_id.upper()} - FB{self.fb_id}')
+        plt.suptitle(
+            f'{date:%Y%m%d} RBSP{self.rbsp_id.upper()} - FB{self.fb_id}\n'
+            f'conjunction summary'
+            )
         self.ax[0,0].set_ylabel('Frequency')
         self.ax[0,1].set_ylabel('Frequency')
         self.ax[1,1].set_ylabel('Collimated\n[counts]')
-        self.ax[0,0].text(0, 1, 'EMFISIS WFR spectra', transform=self.ax[0,0].transAxes)
-        self.ax[0,1].text(0, 1, 'EMFISIS WFR spectra', transform=self.ax[0,1].transAxes)
-        self.ax[1,1].text(0, 1, 'FIREBIRD', transform=self.ax[1,1].transAxes)
+        self.ax[0,0].text(0, 1, 'EMFISIS WFR spectra', va='top', fontsize=15,
+            c='g', transform=self.ax[0,0].transAxes)
+        self.ax[0,1].text(0, 1, 'EMFISIS WFR spectra', va='top', fontsize=15,
+            c='g', transform=self.ax[0,1].transAxes)
+        self.ax[1,1].text(0, 1, 'FIREBIRD', va='top', fontsize=15,
+            c='g', transform=self.ax[1,1].transAxes)
         return
 
     def _plot_emfisis_spec(self, ax, bx, survey_time_range, zoom_time_range):
