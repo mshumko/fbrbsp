@@ -313,8 +313,15 @@ class Burst:
     -------
     >>> # Replicate Fig. 2e from Breneman et al., (2017) 
     >>> # https://doi.org/10.1002/2017GL075001
-    >>> emfisis = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
+    >>> emfisis = Burst('A', 'WFR', ('2016-01-20T19:41', '2016-01-20T19:42'))
     >>> emfisis.load()
+    >>> emfisis['epoch']
+    array([Timestamp('2016-01-20 19:41:03.988688'),
+        Timestamp('2016-01-20 19:41:03.988716571'),
+        Timestamp('2016-01-20 19:41:03.988745142'), ...,
+        Timestamp('2016-01-20 19:41:27.957158428'),
+        Timestamp('2016-01-20 19:41:27.957187'),
+        Timestamp('2016-01-20 19:41:27.957215571')], dtype=object)
     """
     def __init__(self, sc_id, inst, time_range) -> None:
         self.sc_id = sc_id.lower()
@@ -340,7 +347,7 @@ class Burst:
             file_path = self._find_file(file_date)
             _cdf = cdflib.CDF(file_path)
             self.data['epoch_start'] = np.append(
-                _cdf['epoch_start'],
+                self.data['epoch_start'],
                 np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch']))
             )
             if 'timeOffsets' not in self.data.keys():
@@ -357,7 +364,7 @@ class Burst:
             self.data['epoch_start'] = self.data['epoch_start'][idt]
             for key in self.sample_keys:
                 self.data[key] = self.data[key][idt, :]
-        return self.cdf
+        return self.data
 
     def __getitem__(self, _slice):
         """
@@ -371,8 +378,8 @@ class Burst:
                 if hasattr(self, '_epochs'):
                     return self._epochs 
                 # Calculate all epochs (time intensive for long intervals of time).
-                self._epochs = np.nan*np.zeros(
-                    np.prod(self.data[self.sample_keys[0]].shape)
+                self._epochs = np.zeros(
+                    np.prod(self.data[self.sample_keys[0]].shape), dtype=object
                     )
                 n_samples = self.data[self.sample_keys[0]].shape[1]
                 start = 0
@@ -380,7 +387,7 @@ class Burst:
 
                 for _epoch_start in self.data['epoch_start']:
                     self._epochs[start:start+n_samples] = pd.Timestamp(_epoch_start) + \
-                        pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+                        pd.to_timedelta(self.data['timeOffsets'], unit='nanosecond')
                     start += n_samples
                     # end += n_samples
                 return self._epochs
@@ -424,5 +431,7 @@ class Burst:
 
 
 if __name__ == '__main__':
-    emfisis = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
+    emfisis = Burst('A', 'WFR', ('2016-01-20T19:41', '2016-01-20T19:42'))
     emfisis.load()
+    emfisis['epoch']
+    pass
