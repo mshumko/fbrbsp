@@ -70,7 +70,7 @@ class Summary:
     
     def _plot_labels(self, date):
         plt.suptitle(
-            f'{date:%Y%m%d} RBSP{self.rbsp_id.upper()} - FB{self.fb_id}\n'
+            f'{date:%F} RBSP{self.rbsp_id.upper()} - FU{self.fb_id}\n'
             f'conjunction summary'
             )
         self.ax[0,0].set_ylabel('Frequency')
