@@ -313,7 +313,7 @@ class Burst:
     -------
     >>> # Replicate Fig. 2e from Breneman et al., (2017) 
     >>> # https://doi.org/10.1002/2017GL075001
-    >>> emfisis = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
+    >>> emfisis = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
     >>> emfisis.load()
     """
     def __init__(self, sc_id, inst, time_range) -> None:
@@ -323,6 +323,8 @@ class Burst:
         if self.inst != 'wfr':
             raise NotImplementedError(f'{self.inst} is not implemented.')
         self.time_range = utils.validate_time_range(time_range)
+        self.sample_keys = ['BuSamples', 'BvSamples', 'BwSamples', 
+            'EuSamples', 'EvSamples', 'EwSamples']
         return
 
     def load(self):
@@ -331,17 +333,30 @@ class Burst:
         data into memory.
         """
         file_dates = utils.get_filename_times(self.time_range)
-        self.data = {'epoch':np.array([], dtype=object)}
+        self.data = {key:np.zeros((0, 208896)) for key in self.sample_keys}
+        self.data['epoch_start'] = np.array([], dtype=object)
 
         for file_date in file_dates:
             file_path = self._find_file(file_date)
-            self.data[file_date] = cdflib.CDF(file_path)
+            _cdf = cdflib.CDF(file_path)
             self.data['epoch_start'] = np.append(
-                self.data['epoch_start'],
-                np.array(cdflib.cdfepoch.to_datetime(self.data[file_date]['epoch']))
+                _cdf['epoch_start'],
+                np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch']))
             )
-            # self.epoch = pd.Timestamp(self._burst_start[0]) + \
-            #     pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+            if 'timeOffsets' not in self.data.keys():
+                # Save it just once
+                self.data['timeOffsets'] = _cdf['timeOffsets']
+            
+            for key in self.sample_keys:
+                self.data[key] = np.vstack((self.data[key], _cdf[key]))
+
+            idt = np.where(
+                (self.data['epoch_start'] > self.time_range[0]) &
+                (self.data['epoch_start'] <= self.time_range[1])
+                )[0]
+            self.data['epoch_start'] = self.data['epoch_start'][idt]
+            for key in self.sample_keys:
+                self.data[key] = self.data[key][idt, :]
         return self.cdf
 
     def __getitem__(self, _slice):
@@ -349,26 +364,32 @@ class Burst:
         Access the cdf variables using keys (i.e., ['key']).
         """
         if isinstance(_slice, str):
-            # TODO: Finish this.
             if "epoch_start" in _slice.lower():
                 # Start of each 6-second interval
-                idt = np.where(
-                    (self.data['epoch_start'] > self.time_range[0]) & 
-                    (self.data['epoch_start'] < self.time_range[1])
-                    )[0]
-                return self.data['epoch_start'][idt]
+                return self.data['epoch_start']
             elif 'epoch' in _slice.lower():
-                # Calculate all epochs (time intensive for long durations).
-                _epoch_dict = {}
+                if hasattr(self, '_epochs'):
+                    return self._epochs 
+                # Calculate all epochs (time intensive for long intervals of time).
+                self._epochs = np.nan*np.zeros(
+                    np.prod(self.data[self.sample_keys[0]].shape)
+                    )
+                n_samples = self.data[self.sample_keys[0]].shape[1]
+                start = 0
+                # end = n_samples
+
                 for _epoch_start in self.data['epoch_start']:
-                    self.epoch = pd.Timestamp(_epoch_start) + \
+                    self._epochs[start:start+n_samples] = pd.Timestamp(_epoch_start) + \
                         pd.to_timedelta(self.cdf['timeOffsets'], unit='nanosecond')
+                    start += n_samples
+                    # end += n_samples
+                return self._epochs
             else:
                 try:
-                    return self.data[_slice].to_numpy()
+                    return self.data[_slice]
                 except KeyError as err:
-                    raise KeyError(f'{_slice} slice is unrecognized. Try one'
-                        f' of these: {self.data.columns.to_numpy()}')
+                    raise KeyError(f'{_slice} is unrecognized. Try one'
+                        f' of these: {self.data.keys()}')
         else:
             raise KeyError(f'Slice must be str, not {type(_slice)}')
 
@@ -403,22 +424,5 @@ class Burst:
 
 
 if __name__ == '__main__':
-    # burst = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
-    # burst.load()
-    # print(burst['epoch'])
-    # pass
-
-    # Replicate Fig. 2c from Breneman et al., (2017) 
-    # https://doi.org/10.1002/2017GL075001
-    emfisis = Spec('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:00'))
+    emfisis = Burst('A', 'WFR', ('2016-01-20T19:00', '2016-01-20T20:30'))
     emfisis.load()
-    p, ax = emfisis.spectrum(
-        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-8, vmax=1E-4)}
-        )
-    plt.colorbar(p)
-    ax.set_yscale('log')
-    ax.set_ylim(
-        np.min(emfisis.WFR_frequencies), 
-        np.max(emfisis.WFR_frequencies)
-        )
-    plt.show()
