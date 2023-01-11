@@ -91,7 +91,13 @@ class Summary:
         emfisis_spec.spectrum(ax=ax)
 
         emfisis_burst = Burst(self.rbsp_id, 'WFR', zoom_time_range)
-        emfisis_burst.load()
+        try:
+            emfisis_burst.load()
+        except FileNotFoundError as err:
+            if 'does not contain any hyper references' in str(err):
+                pass
+            else:
+                raise
         try:
             emfisis_burst.spectrum(ax=bx)
         except ValueError as err:
