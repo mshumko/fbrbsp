@@ -76,11 +76,11 @@ class Summary:
         self.ax[0,0].set_ylabel('Frequency')
         self.ax[0,1].set_ylabel('Frequency')
         self.ax[1,1].set_ylabel('Collimated\n[counts]')
-        self.ax[0,0].text(0, 1, 'EMFISIS WFR spectra', va='top', fontsize=15,
+        self.ax[0,0].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
             c='g', transform=self.ax[0,0].transAxes)
-        self.ax[0,1].text(0, 1, 'EMFISIS WFR spectra', va='top', fontsize=15,
+        self.ax[0,1].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
             c='g', transform=self.ax[0,1].transAxes)
-        self.ax[1,1].text(0, 1, 'FIREBIRD', va='top', fontsize=15,
+        self.ax[1,1].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
             c='g', transform=self.ax[1,1].transAxes)
         return
 
