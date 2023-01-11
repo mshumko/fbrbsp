@@ -7,5 +7,6 @@ pandas
 sampex
 cdflib
 bumpversion
+scipy
 
 -e . # Install this project

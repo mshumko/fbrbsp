@@ -3,6 +3,7 @@ import dateutil.parser
 
 import numpy as np
 import pandas as pd
+import scipy.signal
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import sampex
@@ -109,7 +110,7 @@ class Spec:
         Parameters
         ----------
         component: str
-            The magnetic or electric field component. Can be one of
+            An magnetic or electric field component. Can be one of
             'BuBu', 'BvBv', 'BwBw', 'EuEu', 'EvEv', or 'EwEw'.
         fce: bool
             Plot the f_ce, f_ce/2, and f_ce/10 lines.
@@ -118,6 +119,13 @@ class Spec:
         pcolormesh_kwarg: dict
             The keyword arguments to pass into plt.pcolormesh. By default
             the only setting is a logarithmic color scale.
+
+        Returns
+        -------
+        matplotlib.collections.QuadMesh
+            The pcolormesh object
+        plt.Axes
+            The subplot object.
         """
         if ax is None:
             fig, ax = plt.subplots()
@@ -374,6 +382,57 @@ class Burst:
             for key in self.sample_keys:
                 self.data[key] = self.data[key][idt, :]
         return self.data
+
+    def spectrum(self, component='BuSamples', fce=True, ax=None, 
+        pcolormesh_kwargs={}, spectrogram_kwargs={}):
+        """
+        Plots a spectrum of the EMFISIS WFR continuous burst waveform.
+
+        Parameters
+        ----------
+        component: str
+            An magnetic or electric field component. Can be one of
+            'BuSamples', 'BvSamples', 'BwSamples', 'EuSamples', 
+            'EvSamples', or 'EwSamples'.
+        fce: bool
+            Plot the f_ce, f_ce/2, and f_ce/10 lines.
+        ax: plt.Axes
+            A subplot to plot on.
+        pcolormesh_kwarg: dict
+            The keyword arguments to pass into plt.pcolormesh. By default
+            the only setting is a logarithmic color scale.
+        spectrogram_kwargs: dict
+            The keyword arguments to pass into scipy.signal.spectrogram.
+
+        Returns
+        -------
+        matplotlib.collections.QuadMesh
+            The pcolormesh object
+        plt.Axes
+            The subplot object.
+        """
+        if ax is None:
+            fig, ax = plt.subplots()
+
+        if pcolormesh_kwargs is {}:
+            pcolormesh_kwargs = {
+                'norm':matplotlib.colors.LogNorm()
+            }
+
+        for _epoch_start, burst_samples in zip(self['spoch_start'], self[component]):
+            f, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
+            # times = pd.Timestamp(_epoch_start) + \
+            #     pd.to_timedelta(self.data['timeOffsets'], unit='nanosecond')
+            p = ax.pcolormesh(t, f, 
+                psd, shading='auto', **pcolormesh_kwargs)    
+        
+        if fce:
+            mag_data = Mag(self.sc_id, self.time_range)
+            mag_data.load()
+            _fce = mag_data.fce()
+            for scaling, ls in zip([1, 0.5, 0.1], ['-', '--', ':']):
+                ax.plot(mag_data['Epoch'][::100], scaling*_fce[::100], c='w', ls=ls)
+        return p, ax
 
     def __getitem__(self, _slice):
         """
