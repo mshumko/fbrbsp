@@ -1,4 +1,5 @@
 *env/*
 *.egg-info/
 *.pyc
+plots/
 config.ini

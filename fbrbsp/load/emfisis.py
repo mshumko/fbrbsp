@@ -155,7 +155,8 @@ class Spec:
                 )
             downloader = sampex.Downloader(
                 url,
-                download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis'
+                download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / \
+                    'emfisis' / self.inst.lower()
                 )
             matched_downloaders = downloader.ls(match=_file_match)
             self.file_path = matched_downloaders[0].download() 
@@ -263,7 +264,7 @@ class Mag:
                 )
             downloader = sampex.Downloader(
                 url,
-                download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis'
+                download_dir=fbrbsp.config["rbsp_data_dir"] / f'rbsp_{self.sc_id}' / 'emfisis' / 'mag'
                 )
             matched_downloaders = downloader.ls(match=_file_match)
             file_path = matched_downloaders[0].download() 
