@@ -315,8 +315,10 @@ class Burst:
     load()
         Searches for and loads the L2 EMFISIS spectral-matrix-diagonal-merged 
         data into memory.
-    spectrum()
-
+    spectrum(component='BuSamples', fce=True, ax=None, pcolormesh_kwargs={}, spectrogram_kwargs={})
+        Plots a spectrum of the EMFISIS WFR continuous burst waveform.
+    calc_spectrum(component, spectrogram_kwargs)
+        Generator to calculate the power spectral density of component.
     Example
     -------
     >>> # Replicate Fig. 2e from Breneman et al., (2017) 
@@ -466,9 +468,9 @@ class Burst:
             The Phase space density.
         """
         for _epoch_start, burst_samples in zip(self['epoch_start'], self[component]):
-            f, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
+            self.frequency, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
             times = pd.Timestamp(_epoch_start) + pd.to_timedelta(t, unit='second')
-            yield times, f, psd
+            yield times, self.frequency, psd
 
     def __getitem__(self, _slice):
         """
@@ -535,20 +537,20 @@ class Burst:
 
 
 if __name__ == '__main__':
-    emfisis = Burst('A', 'WFR', ('2016-01-20T19:41', '2016-01-20T19:42'))
+    emfisis = Burst('B', 'WFR', ('2015-04-09T09:32', '2015-04-09T09:33'))
     emfisis.load()
     # print(emfisis['epoch'])
     # print(emfisis['BwSamples'])
     p, ax = emfisis.spectrum(
         component='BwSamples',
         spectrogram_kwargs={'nperseg':1024},
-        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-3)}
+        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-10, vmax=1E-3)}
         )
     plt.colorbar(p)
-    ax.set_xlim(
-        dateutil.parser.parse('2016-01-20T19:41:06'),
-        dateutil.parser.parse('2016-01-20T19:41:14')
-        )
-    ax.set_ylim(200, 2000)
+    # ax.set_xlim(
+    #     dateutil.parser.parse('2016-01-20T19:41:06'),
+    #     dateutil.parser.parse('2016-01-20T19:41:14')
+    #     )
+    ax.set_ylim(1E2, 1E4)
     plt.show()
     pass
