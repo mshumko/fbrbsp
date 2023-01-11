@@ -500,7 +500,17 @@ class Burst:
 if __name__ == '__main__':
     emfisis = Burst('A', 'WFR', ('2016-01-20T19:41', '2016-01-20T19:42'))
     emfisis.load()
-    # emfisis['epoch']
-    emfisis.spectrum(pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-2)})
+    # print(emfisis['epoch'])
+    # print(emfisis['BwSamples'])
+    p, ax = emfisis.spectrum(
+        component='BwSamples', 
+        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-2)}
+        )
+    plt.colorbar(p)
+    ax.set_xlim(
+        dateutil.parser.parse('2016-01-20T19:41:06'),
+        dateutil.parser.parse('2016-01-20T19:41:14')
+        )
+    ax.set_ylim(400, 2500)
     plt.show()
     pass
