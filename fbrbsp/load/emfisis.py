@@ -426,7 +426,7 @@ class Burst:
             The subplot object.
         """
         if ax is None:
-            fig, ax = plt.subplots()
+            _, ax = plt.subplots()
 
         if pcolormesh_kwargs is {}:
             pcolormesh_kwargs = {
@@ -435,7 +435,10 @@ class Burst:
 
         for times, f, psd in self.calc_spectrum(component, spectrogram_kwargs):
             p = ax.pcolormesh(times, f, 
-                psd, shading='auto', **pcolormesh_kwargs)    
+                psd, shading='auto', **pcolormesh_kwargs)
+        
+        if not 'p' in locals():
+            raise ValueError(f'No burst data from RBSP{self.sc_id} between {self.time_range}.')
         
         if fce:
             mag_data = Mag(self.sc_id, self.time_range)

@@ -8,7 +8,7 @@ import matplotlib.gridspec as gridspec
 
 import fbrbsp
 from fbrbsp.load.firebird import Hires
-from fbrbsp.load.emfisis import Spec
+from fbrbsp.load.emfisis import Spec, Burst
 
 
 class Summary:
@@ -28,7 +28,7 @@ class Summary:
             print(f'Created plotting directory at {self.save_path}')
         pass
 
-    def loop(self, survey_pad_min=60, zoom_pad_min=4):
+    def loop(self, survey_pad_min=60, zoom_pad_min=1):
         # self._init_plot()
 
         for start_time, end_time in zip(self.catalog['startTime'], self.catalog['endTime']):
@@ -41,7 +41,7 @@ class Summary:
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
-            self._plot_emfisis_spec(self.ax[0,0], self.ax[0,1], 
+            self._plot_emfisis(self.ax[0,0], self.ax[0,1], 
                 survey_time_range, zoom_time_range
                 )
             self._plot_firebird(self.ax[1,1], zoom_time_range)
@@ -78,18 +78,28 @@ class Summary:
         self.ax[1,1].set_ylabel('Collimated\n[counts]')
         self.ax[0,0].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
             c='g', transform=self.ax[0,0].transAxes)
-        self.ax[0,1].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
+        self.ax[0,1].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
             c='g', transform=self.ax[0,1].transAxes)
         self.ax[1,1].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
             c='g', transform=self.ax[1,1].transAxes)
         return
 
-    def _plot_emfisis_spec(self, ax, bx, survey_time_range, zoom_time_range):
+    def _plot_emfisis(self, ax, bx, survey_time_range, zoom_time_range):
+
         emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
         emfisis_spec.load()
         emfisis_spec.spectrum(ax=ax)
-        emfisis_spec.spectrum(ax=bx)
 
+        emfisis_burst = Burst(self.rbsp_id, 'WFR', zoom_time_range)
+        emfisis_burst.load()
+        try:
+            emfisis_burst.spectrum(ax=bx)
+        except ValueError as err:
+            if 'No burst data' in str(err):
+                pass
+            else:
+                raise
+        
         ax.set_ylim(
             np.min(emfisis_spec.WFR_frequencies), 
             np.max(emfisis_spec.WFR_frequencies)
