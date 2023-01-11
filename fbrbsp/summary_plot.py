@@ -46,6 +46,8 @@ class Summary:
                 )
             self._plot_firebird(self.ax[1,1], zoom_time_range)
 
+            self._plot_labels(zoom_time_range[0])
+
             save_name = (
                 f'{start_time:%Y%m%d_%H%M%S}_{end_time:%H%M%S}_RBSP{self.rbsp_id.upper()}'
                 f'_FB{self.fb_id}_conjunction_summary.png'
@@ -64,6 +66,16 @@ class Summary:
         for i in range(self.n_rows):
             for j in range(self.n_cols):
                 self.ax[i,j] = self.fig.add_subplot(spec[i, j])
+        return
+    
+    def _plot_labels(self, date):
+        plt.suptitle(f'{date:%Y%m%d} RBSP{self.rbsp_id.upper()} - FB{self.fb_id}')
+        self.ax[0,0].set_ylabel('Frequency')
+        self.ax[0,1].set_ylabel('Frequency')
+        self.ax[1,1].set_ylabel('Collimated\n[counts]')
+        self.ax[0,0].text(0, 1, 'EMFISIS WFR spectra')
+        self.ax[0,1].text(0, 1, 'EMFISIS WFR spectra')
+        self.ax[1,1].text(0, 1, 'FIREBIRD')
         return
 
     def _plot_emfisis_spec(self, ax, bx, survey_time_range, zoom_time_range):

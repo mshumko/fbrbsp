@@ -136,8 +136,8 @@ class Spec:
             mag_data = Mag(self.sc_id, self.time_range)
             mag_data.load()
             _fce = mag_data.fce()
-            for multiple in [1, 0.5, 0.1]:
-                ax.plot(mag_data['Epoch'][::100], multiple*_fce[::100], c='k')
+            for scaling, ls in zip([1, 0.5, 0.1], ['-', '--', ':']):
+                ax.plot(mag_data['Epoch'][::100], scaling*_fce[::100], c='w', ls=ls)
         return p, ax
 
     def _find_file(self, file_date):
