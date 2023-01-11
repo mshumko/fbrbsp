@@ -339,6 +339,18 @@ class Burst:
         -0.10573415, -0.12092584],
         [ 0.09844214,  0.0692741 ,  0.03342171, ..., -0.01397635,
         -0.01944536, -0.02005303]])
+    >>> p, ax = emfisis.spectrum(
+    >>>     component='BwSamples', 
+    >>>     spectrogram_kwargs={'nperseg':1024},
+    >>>     pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-3)}
+    >>>     )
+    >>> plt.colorbar(p)
+    >>> ax.set_xlim(
+    >>>     dateutil.parser.parse('2016-01-20T19:41:06'),
+    >>>     dateutil.parser.parse('2016-01-20T19:41:14')
+    >>>     )
+    >>> ax.set_ylim(200, 2000)
+    >>> plt.show()
     """
     def __init__(self, sc_id, inst, time_range) -> None:
         self.sc_id = sc_id.lower()
@@ -419,9 +431,7 @@ class Burst:
                 'norm':matplotlib.colors.LogNorm()
             }
 
-        for _epoch_start, burst_samples in zip(self['epoch_start'], self[component]):
-            f, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
-            times = pd.Timestamp(_epoch_start) + pd.to_timedelta(t, unit='second')
+        for times, f, psd in self.calc_spectrum(component, spectrogram_kwargs):
             p = ax.pcolormesh(times, f, 
                 psd, shading='auto', **pcolormesh_kwargs)    
         
@@ -432,6 +442,33 @@ class Burst:
             for scaling, ls in zip([1, 0.5, 0.1], ['-', '--', ':']):
                 ax.plot(mag_data['Epoch'][::100], scaling*_fce[::100], c='w', ls=ls)
         return p, ax
+
+    def calc_spectrum(self, component, spectrogram_kwargs):
+        """
+        Generator to calculate the power spectral density of component.
+
+        Parameters
+        ----------
+        component: str
+            An magnetic or electric field component. Can be one of
+            'BuSamples', 'BvSamples', 'BwSamples', 'EuSamples', 
+            'EvSamples', or 'EwSamples'.
+        spectrogram_kwargs: dict
+            The keyword arguments to pass into scipy.signal.spectrogram.
+
+        Yields
+        ------
+        np.array
+            The timestamps in np.datetime64 format.
+        np.array
+            The spectrum frequencies.
+        np.array
+            The Phase space density.
+        """
+        for _epoch_start, burst_samples in zip(self['epoch_start'], self[component]):
+            f, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
+            times = pd.Timestamp(_epoch_start) + pd.to_timedelta(t, unit='second')
+            yield times, f, psd
 
     def __getitem__(self, _slice):
         """
@@ -503,14 +540,15 @@ if __name__ == '__main__':
     # print(emfisis['epoch'])
     # print(emfisis['BwSamples'])
     p, ax = emfisis.spectrum(
-        component='BwSamples', 
-        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-2)}
+        component='BwSamples',
+        spectrogram_kwargs={'nperseg':1024},
+        pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-3)}
         )
     plt.colorbar(p)
     ax.set_xlim(
         dateutil.parser.parse('2016-01-20T19:41:06'),
         dateutil.parser.parse('2016-01-20T19:41:14')
         )
-    ax.set_ylim(400, 2500)
+    ax.set_ylim(200, 2000)
     plt.show()
     pass
