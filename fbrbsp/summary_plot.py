@@ -43,10 +43,13 @@ class Summary:
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
-            self._plot_emfisis(self.ax[0,0], self.ax[1,0], 
+            self._plot_magnetic_field(self.ax[0,0], self.ax[2,0], 
                 survey_time_range, zoom_time_range
                 )
-            self._plot_firebird(self.ax[2,0], zoom_time_range)
+            self._plot_electric_field(self.ax[1,0], self.ax[3,0], 
+                survey_time_range, zoom_time_range
+                )
+            self._plot_firebird(self.ax[-1,0], zoom_time_range)
 
             self._plot_labels(zoom_time_range[0])
 
@@ -60,7 +63,7 @@ class Summary:
         return
 
     def _init_plot(self):
-        self.n_rows = 3
+        self.n_rows = 5
         self.n_cols = 1
         self.fig = plt.figure(constrained_layout=False, figsize=(8, 10))
         spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
@@ -77,16 +80,20 @@ class Summary:
             )
         self.ax[0,0].set_ylabel('Frequency')
         self.ax[1,0].set_ylabel('Frequency')
-        self.ax[2,0].set_ylabel('Collimated\n[counts]')
+        self.ax[-1,0].set_ylabel('Collimated\n[counts]')
         self.ax[0,0].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
             c='g', transform=self.ax[0,0].transAxes)
-        self.ax[1,0].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
+        self.ax[1,0].text(0, 0.99, 'EFW spectra', va='top', fontsize=15,
             c='g', transform=self.ax[1,0].transAxes)
-        self.ax[2,0].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
+        self.ax[2,0].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
             c='g', transform=self.ax[2,0].transAxes)
+        self.ax[3,0].text(0, 0.99, 'EFW mscb1', va='top', fontsize=15,
+            c='g', transform=self.ax[3,0].transAxes)
+        self.ax[-1,0].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
+            c='g', transform=self.ax[-1,0].transAxes)
         return
 
-    def _plot_emfisis(self, ax, bx, survey_time_range, zoom_time_range):
+    def _plot_magnetic_field(self, ax, bx, survey_time_range, zoom_time_range):
 
         emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
         emfisis_spec.load()
@@ -128,6 +135,24 @@ class Summary:
             np.max(emfisis_spec.WFR_frequencies)
         )
         bx.set_xlim(zoom_time_range)
+        return
+
+    def _plot_electric_field(self, ax, bx, survey_time_range, zoom_time_range):
+        emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
+        emfisis_spec.load()
+        plot_fce = True
+        try:
+            emfisis_spec.spectrum(ax=ax, component='EuEu')
+        except ValueError as err: 
+            if "Variable name 'Magnitude' not found." in str(err):
+                plot_fce = False
+                emfisis_spec.spectrum(ax=ax, fce=plot_fce)
+            else:
+                raise
+        ax.set_ylim(
+            np.min(emfisis_spec.WFR_frequencies), 
+            np.max(emfisis_spec.WFR_frequencies)
+        )
         return
 
     def _plot_firebird(self, ax, zoom_time_range):
