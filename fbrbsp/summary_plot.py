@@ -148,5 +148,5 @@ if __name__ == '__main__':
     file_name = f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
 
     s = Summary(fb_id, rbsp_id, file_name)
-    s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2018-10-08']
+    s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2019-02-18']
     s.loop()
