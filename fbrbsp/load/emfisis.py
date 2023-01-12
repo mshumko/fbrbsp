@@ -218,8 +218,9 @@ class Mag:
     >>> mag.load()
     >>> fce = mag.fce()
     """
-    def __init__(self, sc_id, time_range) -> None:
+    def __init__(self, sc_id, time_range, missing_ok=True) -> None:
         self.sc_id = sc_id.lower()
+        self.missing_ok = missing_ok
         self.time_range = utils.validate_time_range(time_range)
         return
 
@@ -277,10 +278,11 @@ class Mag:
             matched_downloaders = downloader.ls(match=_file_match)
             file_path = matched_downloaders[0].download() 
         else:
-            raise FileNotFoundError(
-                f'{len(local_files)} RBSP-{self.sc_id.upper()} EMFISIS files '
-                f'found locally and online that match {_file_match}.'
-                )
+            if not self.missing_ok:
+                raise FileNotFoundError(
+                    f'{len(local_files)} RBSP-{self.sc_id.upper()} EMFISIS files '
+                    f'found locally and online that match {_file_match}.'
+                    )
         return file_path
 
     def __getitem__(self, _slice):

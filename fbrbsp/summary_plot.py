@@ -89,7 +89,15 @@ class Summary:
 
         emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
         emfisis_spec.load()
-        emfisis_spec.spectrum(ax=ax)
+        plot_fce = True
+        try:
+            emfisis_spec.spectrum(ax=ax)
+        except ValueError as err: 
+            if "Variable name 'Magnitude' not found." in str(err):
+                plot_fce = False
+                emfisis_spec.spectrum(ax=ax, fce=plot_fce)
+            else:
+                raise
         ax.set_ylim(
             np.min(emfisis_spec.WFR_frequencies), 
             np.max(emfisis_spec.WFR_frequencies)
@@ -106,7 +114,7 @@ class Summary:
             else:
                 raise
         try:
-            emfisis_burst.spectrum(ax=bx)
+            emfisis_burst.spectrum(ax=bx, fce=plot_fce)
         except ValueError as err:
             if 'No burst data' in str(err):
                 return
@@ -140,5 +148,5 @@ if __name__ == '__main__':
     file_name = f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
 
     s = Summary(fb_id, rbsp_id, file_name)
-    s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2018-03-04']
+    s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2018-10-08']
     s.loop()
