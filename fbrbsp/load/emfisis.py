@@ -383,7 +383,14 @@ class Burst:
             )
             if 'timeOffsets' not in self.data.keys():
                 # Save it just once
-                self.data['timeOffsets'] = _cdf['timeOffsets']
+                try:
+                    self.data['timeOffsets'] = _cdf['timeOffsets']
+                except ValueError as err:
+                    if "Variable name 'timeOffsets' not found." in str(err):
+                        raise ValueError('The EMFISIS burst data is incomplete. It is missing '
+                            'the "timeOffsets" variable.') from err
+                    else:
+                        raise
             
             for key in self.sample_keys:
                 self.data[key] = np.vstack((self.data[key], _cdf[key]))

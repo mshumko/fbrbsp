@@ -31,7 +31,8 @@ class Summary:
     def loop(self, survey_pad_min=60, zoom_pad_min=1):
         # self._init_plot()
 
-        for start_time, end_time in zip(self.catalog['startTime'], self.catalog['endTime']):
+        for i, (start_time, end_time) in enumerate(zip(self.catalog['startTime'], self.catalog['endTime'])):
+            print(f'Processing conjunction: {start_time.isoformat()} ({i}/{self.catalog.shape[0]})')
             self._init_plot()
             survey_time_range = (
                 start_time-timedelta(minutes=survey_pad_min/2),
@@ -89,27 +90,29 @@ class Summary:
         emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
         emfisis_spec.load()
         emfisis_spec.spectrum(ax=ax)
+        ax.set_ylim(
+            np.min(emfisis_spec.WFR_frequencies), 
+            np.max(emfisis_spec.WFR_frequencies)
+        )
 
         emfisis_burst = Burst(self.rbsp_id, 'WFR', zoom_time_range)
         try:
             emfisis_burst.load()
-        except FileNotFoundError as err:
+        except (FileNotFoundError, ValueError) as err:
             if 'does not contain any hyper references' in str(err):
-                pass
+                return
+            elif 'The EMFISIS burst data is incomplete.' in str(err):
+                return
             else:
                 raise
         try:
             emfisis_burst.spectrum(ax=bx)
         except ValueError as err:
             if 'No burst data' in str(err):
-                pass
+                return
             else:
                 raise
         
-        ax.set_ylim(
-            np.min(emfisis_spec.WFR_frequencies), 
-            np.max(emfisis_spec.WFR_frequencies)
-        )
         bx.set_ylim(
             np.min(emfisis_spec.WFR_frequencies), 
             np.max(emfisis_spec.WFR_frequencies)
@@ -137,4 +140,5 @@ if __name__ == '__main__':
     file_name = f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
 
     s = Summary(fb_id, rbsp_id, file_name)
+    s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2018-03-04']
     s.loop()
