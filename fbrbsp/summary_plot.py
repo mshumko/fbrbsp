@@ -4,6 +4,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.colors
 import matplotlib.gridspec as gridspec
 
 import fbrbsp
@@ -42,10 +43,10 @@ class Summary:
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
-            self._plot_emfisis(self.ax[0,0], self.ax[0,1], 
+            self._plot_emfisis(self.ax[0,0], self.ax[1,0], 
                 survey_time_range, zoom_time_range
                 )
-            self._plot_firebird(self.ax[1,1], zoom_time_range)
+            self._plot_firebird(self.ax[2,0], zoom_time_range)
 
             self._plot_labels(zoom_time_range[0])
 
@@ -60,9 +61,9 @@ class Summary:
 
     def _init_plot(self):
         self.n_rows = 3
-        self.n_cols = 2
-        self.fig = plt.figure(constrained_layout=False, figsize=(12, 8))
-        spec = gridspec.GridSpec(nrows=3, ncols=2, figure=self.fig)
+        self.n_cols = 1
+        self.fig = plt.figure(constrained_layout=False, figsize=(8, 10))
+        spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
         self.ax = np.zeros((self.n_rows, self.n_cols), dtype=object)
         for i in range(self.n_rows):
             for j in range(self.n_cols):
@@ -75,14 +76,14 @@ class Summary:
             f'conjunction summary'
             )
         self.ax[0,0].set_ylabel('Frequency')
-        self.ax[0,1].set_ylabel('Frequency')
-        self.ax[1,1].set_ylabel('Collimated\n[counts]')
+        self.ax[1,0].set_ylabel('Frequency')
+        self.ax[2,0].set_ylabel('Collimated\n[counts]')
         self.ax[0,0].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
             c='g', transform=self.ax[0,0].transAxes)
-        self.ax[0,1].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
-            c='g', transform=self.ax[0,1].transAxes)
-        self.ax[1,1].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
-            c='g', transform=self.ax[1,1].transAxes)
+        self.ax[1,0].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
+            c='g', transform=self.ax[1,0].transAxes)
+        self.ax[2,0].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
+            c='g', transform=self.ax[2,0].transAxes)
         return
 
     def _plot_emfisis(self, ax, bx, survey_time_range, zoom_time_range):
@@ -114,7 +115,8 @@ class Summary:
             else:
                 raise
         try:
-            emfisis_burst.spectrum(ax=bx, fce=plot_fce)
+            emfisis_burst.spectrum(ax=bx, fce=plot_fce, 
+                pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-3)})
         except ValueError as err:
             if 'No burst data' in str(err):
                 return
@@ -145,8 +147,10 @@ class Summary:
 if __name__ == '__main__':
     fb_id = 3
     rbsp_id = 'A'
-    file_name = f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
+    for fb_id in [3, 4]:
+        for rbsp_id in ['A', 'B']:
+            file_name = f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
 
-    s = Summary(fb_id, rbsp_id, file_name)
-    s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2019-02-18']
-    s.loop()
+            s = Summary(fb_id, rbsp_id, file_name)
+            # s.catalog = s.catalog[s.catalog.loc[:, 'startTime'] >= '2019-02-18']
+            s.loop()
