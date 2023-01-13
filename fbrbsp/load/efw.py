@@ -146,8 +146,8 @@ class Burst1:
         idx = {"MSCX":0, "MSCY":1, "MSCZ":2}[component]
         for times, E in self.iter_chunks():
             frequency = 1/(pd.Timestamp(times[1]) - pd.Timestamp(times[0])).total_seconds()
-            self.frequency, t, psd = scipy.signal.spectrogram(E[:, idx], fs=frequency, **spectrogram_kwargs)
-            yield times, self.frequency, psd
+            self.frequency, spec_times, psd = scipy.signal.spectrogram(E[:, idx], fs=frequency, **spectrogram_kwargs)
+            yield spec_times, self.frequency, psd
 
     def _find_file(self, file_date):
         _file_match = (f'rbsp{self.sc_id.lower()}_l1_mscb1_{file_date:%Y%m%d}_v*.cdf')
@@ -190,11 +190,14 @@ class Burst1:
                     _cdf['epoch'][i+chunksize], to_np=True) < self.time_range[0]
                 after_end = cdflib.cdfepoch.to_datetime(
                     _cdf['epoch'][i], to_np=True) > self.time_range[1]
-                if before_start or after_end:
+                if before_start:
                     i+=chunksize
                     continue
-                times = cdflib.cdfepoch.to_datetime(_cdf['epoch'][i:i+chunksize], to_np=True)
-                yield times, _cdf['mscb1'][i:i+chunksize, :]
+                elif after_end:
+                    break
+                _epochs = _cdf.varget('epoch', startrec=i, endrec=i+chunksize)
+                times = cdflib.cdfepoch.to_datetime(_epochs, to_np=True)
+                yield times, _cdf.varget('mscb1', startrec=i, endrec=i+chunksize) # _cdf['mscb1'][i:i+chunksize, :]
                 i+=chunksize
 
     # def __getitem__(self, _slice):
@@ -214,8 +217,8 @@ class Burst1:
 if __name__ == '__main__':
     efw = Burst1('B', ('2016-02-03T01', '2016-02-03T02'))
     efw.load()
-    for i, (times, E) in enumerate(efw.iter_chunks()):
-        print(i,times, E, '\n\n\n')
+    # for i, (times, E) in enumerate(efw.iter_chunks()):
+    #     print(i,times, E, '\n\n\n')
     # print(efw['epoch'])
     # print(efw['BwSamples'])
     p, ax = efw.spectrum(
