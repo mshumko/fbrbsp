@@ -29,6 +29,42 @@ class MagEphem:
 
     Example
     -------
+    >>> import matplotlib.pyplot as plt
+    >>>
+    >>> rbsp_id = 'A'
+    >>> time_range = ('2016-01-02T00', '2016-01-5T15:30')
+    >>> mag = MagEphem(rbsp_id, 't89d', time_range)
+    >>> mag.load()
+    >>> print(mag['epoch'])
+    [datetime.datetime(2016, 1, 2, 0, 1) datetime.datetime(2016, 1, 2, 0, 2)
+    datetime.datetime(2016, 1, 2, 0, 3) ...
+    datetime.datetime(2016, 1, 5, 15, 28)
+    datetime.datetime(2016, 1, 5, 15, 29)
+    datetime.datetime(2016, 1, 5, 15, 30)]
+    >>> print(mag['L_Label'])
+    [['L_90' 'L_85' 'L_80' 'L_75' 'L_70' 'L_65' 'L_60' 'L_55' 'L_50' 'L_45'
+    'L_40' 'L_35' 'L_30' 'L_25' 'L_20' 'L_15' 'L_10' 'L_5 ']]
+    >>> print(mag['L'])
+    [[ 1.12443e+00  1.12429e+00  1.12387e+00 ... -1.00000e+31 -1.00000e+31
+    -1.00000e+31]
+    [ 1.14276e+00  1.14264e+00  1.14230e+00 ... -1.00000e+31 -1.00000e+31
+    -1.00000e+31]
+    [ 1.16401e+00  1.16392e+00  1.16365e+00 ... -1.00000e+31 -1.00000e+31
+    -1.00000e+31]
+    ...
+    [ 4.55085e+00  4.55027e+00  4.54856e+00 ...  4.48651e+00  4.48802e+00
+    -1.00000e+31]
+    [ 4.53175e+00  4.53117e+00  4.52945e+00 ...  4.46747e+00  4.46905e+00
+    -1.00000e+31]
+    [ 4.51248e+00  4.51190e+00  4.51017e+00 ...  4.44829e+00  4.44993e+00
+    -1.00000e+31]]
+    >>> 
+    >>> # Plot the L-shell for equatorial-mirroring particles.
+    >>> pa_idx = 0
+    >>> pa = mag["L_Label"][0, pa_idx].split('_')[-1]
+    >>> plt.plot(mag['epoch'], mag['L'][:, pa_idx])
+    >>> plt.title(rf'RBSP-{rbsp_id} L($\alpha$={pa}) vs time')
+    >>> plt.show()
     """
     def __init__(self, sc_id, model, time_range) -> None:
         self.sc_id = sc_id.lower()
@@ -88,32 +124,48 @@ class MagEphem:
         """
         Access the cdf variables using keys (i.e., ['key']).
         """
+        first_cdf_handle = self.cdf_handles[list(self.cdf_handles.keys())[0]]
         if isinstance(_slice, str):
             if ("epoch" in _slice.lower()) or ("time" in _slice.lower()):
                 if hasattr(self, 'epoch'):
                     return self.epoch  # Don't recompute epochs.
-                self.epoch = np.array([])
-                for _cdf in self.cdf_handles.values():
-                    self.epoch = np.concatenate(
-                        (self.epoch, np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch'])))
-                        )
-                self.idt = np.where(
-                    (self.epoch > self.time_range[0]) & (self.epoch <= self.time_range[1])
-                    )[0]
-                self.epoch = self.epoch[self.idt]
+                else:
+                    self._get_epochs()
                 return self.epoch
-            elif _slice.lower() in self.data.keys():
-                # return self.data[_slice]
-                pass
+            elif _slice in first_cdf_handle.cdf_info()['zVariables']:
+                return self._get_variable(_slice)
             else:
                 raise IndexError(f'{_slice} variable is not in the '
-                    f'magnetic ephemeris {self.model} data.'
+                    f'magnetic ephemeris {self.model} data. Available variables: '
+                    f"{first_cdf_handle.cdf_info()['zVariables']}."
                     )
         else:
             raise IndexError(f'Only slicing with integer keys is supported.')
 
-if __name__ == '__main__':
-    mag = MagEphem('A', 't89d', ('2016-01-02T00', '2016-01-03T15:30'))
-    mag.load()
-    print(mag['epoch'])
-    # print(mag[''])
+    def _get_epochs(self):
+        self.epoch = np.array([])
+        for _cdf in self.cdf_handles.values():
+            self.epoch = np.concatenate(
+                (self.epoch, np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch'])))
+                )
+        self.idt = np.where(
+            (self.epoch > self.time_range[0]) & (self.epoch <= self.time_range[1])
+            )[0]
+        self.epoch = self.epoch[self.idt]
+        return
+
+    def _get_variable(self, _slice):
+        first_cdf_handle = self.cdf_handles[list(self.cdf_handles.keys())[0]]
+        if 'label' in _slice.lower():
+            # No appending necessary since there are just labels describing variables.
+            return first_cdf_handle[_slice]
+        else:
+            for _cdf in self.cdf_handles.values():
+                if '_data' not in locals():
+                    _data = _cdf[_slice]
+                else:
+                    _data = np.concatenate((_data, _cdf[_slice]))
+        # Filter by time
+        if not hasattr(self, 'idt'):
+            self._get_epochs()
+        return _data.take(indices=self.idt, axis=0)
