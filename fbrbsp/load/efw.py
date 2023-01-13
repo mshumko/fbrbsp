@@ -113,7 +113,7 @@ class Burst1:
                 psd, shading='auto', **pcolormesh_kwargs)
         
         if not 'p' in locals():
-            raise ValueError(f'No burst data from RBSP{self.sc_id} between {self.time_range}.')
+            raise ValueError(f'No EFW burst 1 data from RBSP{self.sc_id} between {self.time_range}.')
         
         if fce:
             mag_data = Mag(self.sc_id, self.time_range)
@@ -130,9 +130,7 @@ class Burst1:
         Parameters
         ----------
         component: str
-            An magnetic or electric field component. Can be one of
-            'BuSamples', 'BvSamples', 'BwSamples', 'EuSamples', 
-            'EvSamples', or 'EwSamples'.
+            An electric field component. Must be "MSCX", "MSCY", or "MSCZ".
         spectrogram_kwargs: dict
             The keyword arguments to pass into scipy.signal.spectrogram.
 
@@ -145,9 +143,10 @@ class Burst1:
         np.array
             The Phase space density.
         """
-        for _epoch_start, burst_samples in zip(self['epoch_start'], self[component]):
-            self.frequency, t, psd = scipy.signal.spectrogram(burst_samples, fs=35E3, **spectrogram_kwargs)
-            times = pd.Timestamp(_epoch_start) + pd.to_timedelta(t, unit='second')
+        idx = {"MSCX":0, "MSCY":1, "MSCZ":2}[component]
+        for times, E in self.iter_chunks():
+            frequency = 1/(pd.Timestamp(times[1]) - pd.Timestamp(times[0])).total_seconds()
+            self.frequency, t, psd = scipy.signal.spectrogram(E[:, idx], fs=frequency, **spectrogram_kwargs)
             yield times, self.frequency, psd
 
     def _find_file(self, file_date):
@@ -187,6 +186,13 @@ class Burst1:
         for _cdf in self.cdf_handles.values():
             i=0
             while i < n:
+                before_start = cdflib.cdfepoch.to_datetime(
+                    _cdf['epoch'][i+chunksize], to_np=True) < self.time_range[0]
+                after_end = cdflib.cdfepoch.to_datetime(
+                    _cdf['epoch'][i], to_np=True) > self.time_range[1]
+                if before_start or after_end:
+                    i+=chunksize
+                    continue
                 times = cdflib.cdfepoch.to_datetime(_cdf['epoch'][i:i+chunksize], to_np=True)
                 yield times, _cdf['mscb1'][i:i+chunksize, :]
                 i+=chunksize
@@ -212,16 +218,15 @@ if __name__ == '__main__':
         print(i,times, E, '\n\n\n')
     # print(efw['epoch'])
     # print(efw['BwSamples'])
-    # p, ax = efw.spectrum(
-    #     component='BwSamples',
-    #     spectrogram_kwargs={'nperseg':1024},
-    #     pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-10, vmax=1E-3)}
-    #     )
-    # plt.colorbar(p)
+    p, ax = efw.spectrum(
+        spectrogram_kwargs={'nperseg':1024},
+        # pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-10, vmax=1E-3)}
+        )
+    plt.colorbar(p)
     # # ax.set_xlim(
     # #     dateutil.parser.parse('2016-01-20T19:41:06'),
     # #     dateutil.parser.parse('2016-01-20T19:41:14')
     # #     )
     # ax.set_ylim(1E2, 1E4)
-    # plt.show()
+    plt.show()
     pass
