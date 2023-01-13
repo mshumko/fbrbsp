@@ -1,11 +1,6 @@
-import json
-import dateutil.parser
+from collections import defaultdict
 
 import numpy as np
-import pandas as pd
-import scipy.signal
-import matplotlib.colors
-import matplotlib.pyplot as plt
 import sampex
 import cdflib
 
@@ -48,9 +43,7 @@ class MagEphem:
         Searches for and loads the data into memory.
         """
         file_dates = utils.get_filename_times(self.time_range, dt='days')
-        # self.data = {key:np.zeros((0, 65)) for key in self.spectrum_keys}
-        self.data = {}
-        self.data['epoch'] = np.array([])
+        self.cdf_handles = {}
 
         for file_date in file_dates:
             try:
@@ -61,20 +54,8 @@ class MagEphem:
                 else:
                     raise
             _cdf = cdflib.CDF(file_path)
-            self.data['epoch'] = np.concatenate((
-                self.data['epoch'],
-                np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch']))
-                )) 
-            # for key in self.spectrum_keys:
-            #     self.data[key] = np.vstack((self.data[key], _cdf[key]))
-
-        idt = np.where(
-            (self.data['epoch'] > self.time_range[0]) & (self.data['epoch'] <= self.time_range[1])
-            )[0]
-        self.data['epoch'] = self.data['epoch'][idt]
-        # for key in self.spectrum_keys:
-        #     self.data[key] = self.data[key][idt, :]
-        return self.data
+            self.cdf_handles[file_date] = _cdf
+        return self.cdf_handles
 
     def _find_file(self, file_date):
         _file_match = (f'rbsp-{self.sc_id.lower()}_mag-ephem_def-1min-'
@@ -109,9 +90,21 @@ class MagEphem:
         """
         if isinstance(_slice, str):
             if ("epoch" in _slice.lower()) or ("time" in _slice.lower()):
-                return self.data['epoch']
+                if hasattr(self, 'epoch'):
+                    return self.epoch  # Don't recompute epochs.
+                self.epoch = np.array([])
+                for _cdf in self.cdf_handles.values():
+                    self.epoch = np.concatenate(
+                        (self.epoch, np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch'])))
+                        )
+                self.idt = np.where(
+                    (self.epoch > self.time_range[0]) & (self.epoch <= self.time_range[1])
+                    )[0]
+                self.epoch = self.epoch[self.idt]
+                return self.epoch
             elif _slice.lower() in self.data.keys():
-                return self.data[_slice]
+                # return self.data[_slice]
+                pass
             else:
                 raise IndexError(f'{_slice} variable is not in the '
                     f'magnetic ephemeris {self.model} data.'
@@ -120,7 +113,7 @@ class MagEphem:
             raise IndexError(f'Only slicing with integer keys is supported.')
 
 if __name__ == '__main__':
-    mag = MagEphem('A', 't89d', ('2016-01-02', '2016-01-03T15:30'))
+    mag = MagEphem('A', 't89d', ('2016-01-02T00', '2016-01-03T15:30'))
     mag.load()
     print(mag['epoch'])
     # print(mag[''])
