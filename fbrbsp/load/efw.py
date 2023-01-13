@@ -146,7 +146,8 @@ class Burst1:
         idx = {"MSCX":0, "MSCY":1, "MSCZ":2}[component]
         for times, E in self.iter_chunks():
             frequency = 1/(pd.Timestamp(times[1]) - pd.Timestamp(times[0])).total_seconds()
-            self.frequency, spec_times, psd = scipy.signal.spectrogram(E[:, idx], fs=frequency, **spectrogram_kwargs)
+            self.frequency, time_sec, psd = scipy.signal.spectrogram(E[:, idx], fs=frequency, **spectrogram_kwargs)
+            spec_times = pd.Timestamp(times[0]) + pd.to_timedelta(time_sec, unit='second')
             yield spec_times, self.frequency, psd
 
     def _find_file(self, file_date):
