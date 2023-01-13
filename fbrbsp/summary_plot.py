@@ -21,7 +21,7 @@ class Summary:
         self.file_name = file_name
         self.rbsp_xlabels = rbsp_xlabels
         if self.rbsp_xlabels is None:
-            self.rbsp_xlabels = {"L": "L_90", "MLT": "MLT"}
+            self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT"}
 
         self.catalog_path = fbrbsp.config['here'].parent / 'data' / file_name
         self.catalog = pd.read_csv(self.catalog_path)
@@ -49,31 +49,33 @@ class Summary:
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
 
-            self._rbsp_magephem_labels(survey_time_range, self.ax[3,0])
+            self._rbsp_magephem_labels(survey_time_range, self.ax[1,0])
 
-            self._plot_magnetic_field(self.ax[0,0], self.ax[2,0], 
+            self._plot_magnetic_field(self.ax[0,0], self.ax[0,1], 
                 survey_time_range, zoom_time_range
                 )
-            self._plot_electric_field(self.ax[1,0], self.ax[3,0], 
+            self._plot_electric_field(self.ax[1,0], self.ax[1,1], 
                 survey_time_range, zoom_time_range
                 )
-            self._plot_firebird(self.ax[-1,0], zoom_time_range)
+            self._plot_firebird(self.ax[-1,1], zoom_time_range)
 
             self._plot_labels(zoom_time_range[0])
+            # plt.show()
 
             save_name = (
                 f'{start_time:%Y%m%d_%H%M%S}_{end_time:%H%M%S}_RBSP{self.rbsp_id.upper()}'
                 f'_FB{self.fb_id}_conjunction_summary.png'
                 )
+            plt.subplots_adjust(hspace=0.795)
             plt.savefig(self.save_path / save_name)
             # self._clear_plot()
             plt.close()
         return
 
     def _init_plot(self):
-        self.n_rows = 6
-        self.n_cols = 1
-        self.fig = plt.figure(constrained_layout=False, figsize=(8, 10))
+        self.n_rows = 3
+        self.n_cols = 3
+        self.fig = plt.figure(constrained_layout=False, figsize=(12, 10))
         spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
         self.ax = np.zeros((self.n_rows, self.n_cols), dtype=object)
         for i in range(self.n_rows):
@@ -88,17 +90,17 @@ class Summary:
             )
         self.ax[0,0].set_ylabel('Frequency')
         self.ax[1,0].set_ylabel('Frequency')
-        self.ax[-1,0].set_ylabel('Collimated\n[counts]')
+        self.ax[-1,1].set_ylabel('Collimated\n[counts]')
         self.ax[0,0].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
             c='g', transform=self.ax[0,0].transAxes)
         self.ax[1,0].text(0, 0.99, 'EFW spectra', va='top', fontsize=15,
             c='g', transform=self.ax[1,0].transAxes)
-        self.ax[2,0].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
-            c='g', transform=self.ax[2,0].transAxes)
-        self.ax[3,0].text(0, 0.99, 'EFW mscb1', va='top', fontsize=15,
-            c='g', transform=self.ax[3,0].transAxes)
-        self.ax[-1,0].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
-            c='g', transform=self.ax[-1,0].transAxes)
+        self.ax[0,1].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
+            c='g', transform=self.ax[0,1].transAxes)
+        self.ax[1,1].text(0, 0.99, 'EFW mscb1', va='top', fontsize=15,
+            c='g', transform=self.ax[1,1].transAxes)
+        self.ax[-1,1].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
+            c='g', transform=self.ax[-1,1].transAxes)
         return
 
     def _plot_magnetic_field(self, ax, bx, survey_time_range, zoom_time_range):
@@ -194,7 +196,7 @@ class Summary:
                 # find pitch angle
                 ida = np.where(val.upper() == self.rbsp_magephem['L_Label'])[0]
                 tick_list.append(
-                    self.rbsp_magephem[val[0]][i_min_time, ida].round(2).astype(str)
+                    self.rbsp_magephem[val[0]][i_min_time, ida][0].round(2).astype(str)
                     )
             else:
                 tick_list.append(
