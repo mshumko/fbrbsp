@@ -8,6 +8,7 @@ import cdflib
 
 import fbrbsp
 import fbrbsp.load.utils as utils
+from fbrbsp.load.emfisis import Mag
 
 base_data_url = 'https://spdf.gsfc.nasa.gov/pub/data/rbsp/'
 q_e = -1.6E-19
@@ -49,8 +50,7 @@ class Burst1:
         Searches for and loads the L1 EFW burst 1 data into memory.
         """
         file_dates = utils.get_filename_times(self.time_range, dt='days')
-        self.data = {key:np.zeros((0, 65)) for key in self.sample_keys}
-        self.data['epoch'] = np.array([])
+        self.cdf_handles = {}
 
         for file_date in file_dates:
             try:
@@ -60,26 +60,21 @@ class Burst1:
                     continue
                 else:
                     raise
-            _cdf = cdflib.CDF(file_path)
-            self.data['epoch'] = np.concatenate((
-                self.data['epoch'],
-                np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch']))
-                )) 
-            for key in self.spectrum_keys:
-                self.data[key] = np.vstack((self.data[key], _cdf[key]))
+            self.cdf_handles[file_date] = cdflib.CDF(file_path)
+        #     self.data['epoch'] = np.concatenate((
+        #         self.data['epoch'],
+        #         np.array(cdflib.cdfepoch.to_datetime(_cdf['epoch']))
+        #         )) 
 
-            if not hasattr(self, 'WFR_frequencies'):
-                self.WFR_frequencies = _cdf['WFR_frequencies'].flatten()
+        # idt = np.where(
+        #     (self.data['epoch'] > self.time_range[0]) & (self.data['epoch'] <= self.time_range[1])
+        #     )[0]
+        # self.data['epoch'] = self.data['epoch'][idt]
+        # for key in self.spectrum_keys:
+        #     self.data[key] = self.data[key][idt, :]
+        return self.cdf_handles
 
-        idt = np.where(
-            (self.data['epoch'] > self.time_range[0]) & (self.data['epoch'] <= self.time_range[1])
-            )[0]
-        self.data['epoch'] = self.data['epoch'][idt]
-        for key in self.spectrum_keys:
-            self.data[key] = self.data[key][idt, :]
-        return self.data
-
-    def spectrum(self, component='BuSamples', fce=True, ax=None, 
+    def spectrum(self, component='MSCX', fce=True, ax=None, 
         pcolormesh_kwargs={}, spectrogram_kwargs={}):
         """
         Plots a spectrum of the EFW burst 1 waveform data.
@@ -87,9 +82,7 @@ class Burst1:
         Parameters
         ----------
         component: str
-            An magnetic or electric field component. Can be one of
-            'BuSamples', 'BvSamples', 'BwSamples', 'EuSamples', 
-            'EvSamples', or 'EwSamples'.
+            An electric field component. Can be "MSCX", "MSCY", or "MSCZ".
         fce: bool
             Plot the f_ce, f_ce/2, and f_ce/10 lines.
         ax: plt.Axes
@@ -183,23 +176,40 @@ class Burst1:
                 )
         return self.file_path
 
-    def __getitem__(self, _slice):
+    
+    def iter_chunks(self, chunksize=1_000_000):
         """
-        Access the cdf variables using keys (i.e., ['key']).
+        Iterate chunks of epochs and mscb1 variables.
         """
-        if isinstance(_slice, str):
-            if ("epoch" in _slice.lower()) or ("time" in _slice.lower()):
-                return self.data['epoch']
-            elif _slice.lower() in [key.lower() for key in self.spectrum_keys]:
-                return self.data[_slice]
-            else:
-                raise IndexError(f'{_slice} is not in the EFW Burst1 data.')
-        else:
-            raise IndexError(f'Only slicing with integer keys is supported.')
+        first_cdf_handle = self.cdf_handles[list(self.cdf_handles.keys())[0]]
+        n = len(self.cdf_handles.keys())*first_cdf_handle['Epoch'].shape[0]
+        
+        for _cdf in self.cdf_handles.values():
+            i=0
+            while i < n:
+                times = cdflib.cdfepoch.to_datetime(_cdf['epoch'][i:i+chunksize], to_np=True)
+                yield times, _cdf['mscb1'][i:i+chunksize, :]
+                i+=chunksize
+
+    # def __getitem__(self, _slice):
+    #     """
+    #     Access the cdf variables using keys (i.e., ['key']).
+    #     """
+    #     if isinstance(_slice, str):
+    #         if ("epoch" in _slice.lower()) or ("time" in _slice.lower()):
+    #             return self.data['epoch']
+    #         elif _slice.lower() in [key.lower() for key in self.spectrum_keys]:
+    #             return self.data[_slice]
+    #         else:
+    #             raise IndexError(f'{_slice} is not in the EFW Burst1 data.')
+    #     else:
+    #         raise IndexError(f'Only slicing with integer keys is supported.')
 
 if __name__ == '__main__':
     efw = Burst1('B', ('2016-02-03T01', '2016-02-03T02'))
     efw.load()
+    for i, (times, E) in enumerate(efw.iter_chunks()):
+        print(i,times, E, '\n\n\n')
     # print(efw['epoch'])
     # print(efw['BwSamples'])
     # p, ax = efw.spectrum(
