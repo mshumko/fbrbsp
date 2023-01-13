@@ -184,7 +184,7 @@ class Summary:
         # Find the nearest time within 30 seconds (the cadence of the RBSP mag ephem is 1 minute)
         tick_time = matplotlib.dates.num2date(tick_val).replace(tzinfo=None)
         i_min_time = np.argmin(np.abs(self.rbsp_magephem['epoch'] - tick_time))
-        if np.abs(self.rbsp_magephem['epoch'] - tick_time).total_seconds() > 30:
+        if np.abs(self.rbsp_magephem['epoch'][i_min_time] - tick_time).total_seconds() > 30:
             return tick_time.strftime("%H:%M:%S")
 
         # Construct the tick
@@ -202,7 +202,8 @@ class Summary:
                     )
             
         # Cast np.array as strings so that it can insert the time string.
-        tick_list = np.insert(tick_list, 0, tick_time.strftime("%H:%M:%S"))
+        tick_list = np.insert(tick_list, 0, 
+            self.rbsp_magephem['epoch'][i_min_time].strftime("%H:%M:%S"))
         return "\n".join(tick_list)
 
     def _plot_firebird(self, ax, zoom_time_range):
