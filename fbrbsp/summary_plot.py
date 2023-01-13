@@ -5,18 +5,23 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.colors
+from matplotlib.ticker import FuncFormatter
 import matplotlib.gridspec as gridspec
 
 import fbrbsp
 from fbrbsp.load.firebird import Hires
 from fbrbsp.load.emfisis import Spec, Burst
+from fbrbsp.load.rbsp_magephem import MagEphem
 
 
 class Summary:
-    def __init__(self, fb_id, fbsp_id, file_name) -> None:
+    def __init__(self, fb_id, fbsp_id, file_name, rbsp_xlabels=None) -> None:
         self.fb_id = fb_id 
         self.rbsp_id = fbsp_id
         self.file_name = file_name
+        self.rbsp_xlabels = rbsp_xlabels
+        if self.rbsp_xlabels is None:
+            self.rbsp_xlabels = {"L": "L_90", "MLT": "MLT"}
 
         self.catalog_path = fbrbsp.config['here'].parent / 'data' / file_name
         self.catalog = pd.read_csv(self.catalog_path)
@@ -43,6 +48,9 @@ class Summary:
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
+
+            self._rbsp_magephem_labels(survey_time_range, self.ax[3,0])
+
             self._plot_magnetic_field(self.ax[0,0], self.ax[2,0], 
                 survey_time_range, zoom_time_range
                 )
@@ -63,7 +71,7 @@ class Summary:
         return
 
     def _init_plot(self):
-        self.n_rows = 5
+        self.n_rows = 6
         self.n_cols = 1
         self.fig = plt.figure(constrained_layout=False, figsize=(8, 10))
         spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
@@ -154,6 +162,48 @@ class Summary:
             np.max(emfisis_spec.WFR_frequencies)
         )
         return
+
+    def _rbsp_magephem_labels(self, time_range, _ax):
+        self.rbsp_magephem = MagEphem(self.rbsp_id, 't89d', time_range)
+        self.rbsp_magephem.load()
+
+        _ax.xaxis.set_major_formatter(FuncFormatter(self.format_rbsp_xaxis))
+        _ax.set_xlabel("\n".join(["Time"] + list(self.rbsp_xlabels.keys())))
+        _ax.xaxis.set_label_coords(-0.1, -0.06)
+
+        _ax.format_coord = lambda x, y: "{}, {}".format(
+            matplotlib.dates.num2date(x).replace(tzinfo=None).isoformat(), round(y)
+        )
+        return
+
+    def format_rbsp_xaxis(self, tick_val, tick_pos):
+        """
+        The tick magic happens here. pyplot gives it a tick time, and this function 
+        returns the closest label to that time. Read docs for FuncFormatter().
+        """
+        # Find the nearest time within 30 seconds (the cadence of the RBSP mag ephem is 1 minute)
+        tick_time = matplotlib.dates.num2date(tick_val).replace(tzinfo=None)
+        i_min_time = np.argmin(np.abs(self.rbsp_magephem['epoch'] - tick_time))
+        if np.abs(self.rbsp_magephem['epoch'] - tick_time).total_seconds() > 30:
+            return tick_time.strftime("%H:%M:%S")
+
+        # Construct the tick
+        tick_list = []
+        for key, val in self.rbsp_xlabels.items():
+            if key[0].upper() == 'L':
+                # find pitch angle
+                ida = np.where(val.upper() == self.rbsp_magephem['L_Label'])[0]
+                tick_list.append(
+                    self.rbsp_magephem[val[0]][i_min_time, ida].round(2).astype(str)
+                    )
+            else:
+                tick_list.append(
+                    self.rbsp_magephem[val][i_min_time].round(2).astype(str)
+                    )
+            
+        # Cast np.array as strings so that it can insert the time string.
+        tick_list = np.insert(tick_list, 0, tick_time.strftime("%H:%M:%S"))
+        return "\n".join(tick_list)
 
     def _plot_firebird(self, ax, zoom_time_range):
         hr = Hires(self.fb_id, zoom_time_range[0]).load()
