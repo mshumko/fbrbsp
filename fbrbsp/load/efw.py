@@ -180,6 +180,11 @@ class Burst1:
     def iter_chunks(self, chunksize=1_000_000):
         """
         Iterate chunks of epochs and mscb1 variables.
+
+        Example
+        -------
+        >>> for i, (times, E) in enumerate(efw.iter_chunks()):
+        >>>     print(i, times, E, '\n')
         """
         first_cdf_handle = self.cdf_handles[list(self.cdf_handles.keys())[0]]
         n = len(self.cdf_handles.keys())*first_cdf_handle['Epoch'].shape[0]
@@ -216,12 +221,10 @@ class Burst1:
     #         raise IndexError(f'Only slicing with integer keys is supported.')
 
 if __name__ == '__main__':
-    efw = Burst1('B', ('2016-02-03T01', '2016-02-03T02'))
+    # Recreate Colpitts et al., (2020) Fig. 4a
+    # https://doi.org/10.1029/2020JA028315
+    efw = Burst1('A', ('2017-08-21T01:45', '2017-08-21T01:46'))
     efw.load()
-    # for i, (times, E) in enumerate(efw.iter_chunks()):
-    #     print(i,times, E, '\n\n\n')
-    # print(efw['epoch'])
-    # print(efw['BwSamples'])
     p, ax = efw.spectrum(
         spectrogram_kwargs={'nperseg':1024},
         # pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-10, vmax=1E-3)}
