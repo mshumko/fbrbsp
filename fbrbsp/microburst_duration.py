@@ -1,5 +1,6 @@
 import pathlib
 from datetime import datetime, timedelta
+import warnings
 
 import numpy as np
 import scipy.optimize
@@ -7,6 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.dates
+import sklearn.metrics
 
 import fbrbsp
 import fbrbsp.load.firebird
@@ -33,7 +35,7 @@ class Duration:
 
         return
 
-    def loop(self,):
+    def loop(self):
         """
         Loop over and fit each microburst that was detected when the HiRes cadence was faster or
         equal to self.max_cadence.
@@ -47,11 +49,116 @@ class Duration:
             if current_date != row['Time'].date():
                 self.hr = fbrbsp.load.firebird.Hires(self.fb_id, row['Time'].date()).load()
                 current_date = row['Time'].date()
+
+            self.fit(row, self.hr)
             
             if self.validation_plots:
                 self._plot_microburst(row)
 
         return
+
+    def fit(self, row, hr):
+        """
+        Fit the microburst at time row['Time'] by a Gaussian. Energy channel defined by self.channel.
+        """
+        idt_peak = np.where(self.hr['Time'] == row['Time'])[0]
+        t0_peak = self.hr['Time'][idt_peak]
+        time_range = [
+                self.hr['Time'][idt_peak]-pd.Timedelta(seconds=0.25),
+                self.hr['Time'][idt_peak]+pd.Timedelta(seconds=0.25)
+                ]
+        idt = np.where(
+            (self.hr['Time'] > time_range[0]) &
+            (self.hr['Time'] < time_range[1])
+            )[0]
+
+        if self.detrend:
+            p0 = [
+                self.hr['Col_counts'][idt_peak, self.channel],   # gauss amplitude 
+                t0_peak,         # gauss center time
+                0.1,    # 2x gaus std.
+                np.median(self.hr['Col_counts'][idt, self.channel]), # y-intercept
+                0           # Slope
+                ]
+        else:
+            p0 = [self.hr['Col_counts'][idt_peak, self.channel], t0_peak, 0.1]
+
+        with warnings.catch_warnings(record=True) as w:
+            try:
+                popt, pcov, r2, adj_r2 = self._fit_gaus(idt, p0)
+            except RuntimeError as err:
+                if ('Optimal parameters not found: Number of calls '
+                    'to function has reached maxfev') in str(err):
+                    return
+                else:
+                    raise
+            if len(w):  # only print if warning emitted.
+                print(w[0].message, '\n', p0, popt)
+        # TODO: Return parameters here
+        return
+
+    def fit_gaus(self, idt, p0):
+        """
+        Fits a gaussian shape with an optional linear detrend term.
+        """
+        x_data = self.hr['Time'][idt]
+        current_date = x_data[0].floor('d')
+        x_data_seconds = (x_data-current_date).total_seconds()
+        y_data = self.hr['Col_counts'][idt, self.channel]
+
+        if len(x_data) < len(p0):
+            raise ValueError('Not enough data points to fit. Increase the '
+                            'time_range or self.width_multiplier')
+
+        p0[0] *= 2
+        p0[1] = (p0[1] - current_date).total_seconds()
+        p0[2] = p0[2]/2 # Convert the microburst width guess to ~std.
+
+        popt, pcov = scipy.optimize.curve_fit(Duration.gaus_lin_function, 
+                                                x_data_seconds, y_data, p0=p0, maxfev=5000)
+        popt_np = -1*np.ones(len(popt), dtype=object)
+        popt_np[0] = popt[0]
+        popt_np[1] = current_date + pd.Timedelta(seconds=float(popt[1]))
+        popt_np[2] = (2*np.sqrt(2*np.log(2)))*popt[2]
+        if len(popt) == 5:
+            # If superposed a Gaussian on a linear trend...
+            popt_np[3:] = popt[3:]
+
+        y_pred = Duration.gaus_lin_function(x_data_seconds, *popt)
+        try:
+            r2, adj_r2 = self.goodness_of_fit(y_data, y_pred, len(popt))
+        except ValueError as err:
+            if 'Input contains NaN, infinity or a value too large' in str(err):
+                print(f'popt={popt}')
+                print(f'y-data={y_data}')
+                print(f'y_pred={y_pred}')
+            raise
+        return popt_np, np.sqrt(np.diag(pcov)), r2, adj_r2
+
+    @staticmethod
+    def gaus_lin_function(t, *args):
+        """
+        Args is an array of either 3 or 5 elements. First three elements are
+        the Guassian amplitude, center time, and width. The last two optional
+        elements are the y-intercept and slope for a linear trend. 
+        """
+        exp_arg = -(t-args[1])**2/(2*args[2]**2)
+        y = args[0]*np.exp(exp_arg)
+
+        if len(args) == 5:
+            y += args[3] + t*args[4]
+        return y
+
+    def goodness_of_fit(self, y_true, y_pred, n_params):
+        """
+        Method to calculate the R^2 coefficient of determination
+        and the adjusted R^2 coefficient given the number
+        of fit parameters n_params.
+        """
+        r2 = sklearn.metrics.r2_score(y_true, y_pred)
+        n = len(y_true)
+        adj_r2 = 1 - (1-r2)*(n-1)/(n-1-n_params)
+        return r2, adj_r2
 
     def _load_catalog(self):
         """

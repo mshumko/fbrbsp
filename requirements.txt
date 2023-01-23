@@ -8,5 +8,6 @@ sampex
 cdflib
 bumpversion
 scipy
+scikit-learn
 
 -e . # Install this project
