@@ -4,19 +4,29 @@ from datetime import datetime, timedelta
 import numpy as np
 import scipy.optimize
 import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.ticker
+import matplotlib.dates
 
 import fbrbsp
 import fbrbsp.load.firebird
 
 
 class Duration:
-    def __init__(self, fb_id, catalog_version, detrend=True, max_cadence=18.75, channel=0) -> None:
+    def __init__(self, fb_id, catalog_version, detrend=True, max_cadence=18.75, 
+                channel=0, validation_plots=True) -> None:
         self.fb_id = fb_id  
         self.microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
         self.microburst_path = fbrbsp.config['here'].parent / 'data' / self.microburst_name
         self.detrend = detrend
         self.max_cadence = max_cadence
         self.channel = channel
+        self.validation_plots = validation_plots
+
+        if self.validation_plots:
+            self.plot_save_dir = pathlib.Path(fbrbsp.config['here'].parent, 'plots', 
+                self.microburst_name.split('.')[0])
+            self.plot_save_dir.mkdir(parents=True, exist_ok=True)
 
         self._load_catalog()
         self._load_campaign_dates()
@@ -24,7 +34,10 @@ class Duration:
         return
 
     def loop(self,):
-
+        """
+        Loop over and fit each microburst that was detected when the HiRes cadence was faster or
+        equal to self.max_cadence.
+        """
         current_date = datetime.min
 
         for i, row in self.microbursts.iterrows():
@@ -33,6 +46,9 @@ class Duration:
             if current_date != row['Time'].date():
                 self.hr = fbrbsp.load.firebird.Hires(self.fb_id, row['Time'].date()).load()
                 current_date = row['Time'].date()
+            
+            if self.validation_plots:
+                self._plot_microburst(self, row)
 
         return
 
@@ -70,6 +86,48 @@ class Duration:
         self.campaign['End Date'] = pd.to_datetime(self.campaign['End Date'])
         self.campaign['HiRes Cadence'] = [float(c.split()[0]) for c in self.campaign['HiRes Cadence']]
         return
+
+    def _plot_microburst(self, row, plot_window_s=2):
+        _, ax = plt.subplots()
+        index = row['Time']
+        dt = pd.Timedelta(seconds=plot_window_s/2)
+        time_range = (index-dt, index+dt)
+
+        idt = np.where(
+            (self.hr['Time'] > time_range[0]) &
+            (self.hr['Time'] < time_range[1])
+            )[0]
+        idt_peak = np.where(self.hr['Time'] == index)[0]
+        ax.plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, 0], c='k')
+        ax.scatter(self.hr['Time'][idt_peak], self.hr['Col_counts'][idt_peak, 0], marker='*', s=200, c='r')
+
+        ax.set(
+            xlim=time_range, xlabel='Time', 
+            ylabel=f'Counts/{1000*float(self.hr.attrs["CADENCE"])} ms',
+            title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst validation")
+            )
+        s = (
+            f'time_gap={row["time_gap"]}\nsaturated={row["saturated"]}\n'
+            f'n_zeros={row["n_zeros"]}\n\n'
+            f'L={round(row["McIlwainL"], 1)}\n'
+            f'MLT={round(row["MLT"], 1)}\n'
+            f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})'
+            )
+        ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
+        locator=matplotlib.ticker.MaxNLocator(nbins=5)
+        ax.xaxis.set_major_locator(locator)
+        fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
+        ax.xaxis.set_major_formatter(fmt)
+
+        plt.tight_layout()
+
+        save_time = index.strftime("%Y%m%d_%H%M%S_%f")
+        save_name = (f'{save_time}_fu{self.fb_id}_microburst.png')
+        save_path = pathlib.Path(self.plot_save_dir, save_name)
+        plt.savefig(save_path)
+        plt.close()
+        return
+
 
 if __name__ == "__main__":
     d = Duration(3, 5)
