@@ -41,6 +41,7 @@ class Duration:
         current_date = datetime.min
 
         for i, row in self.microbursts.iterrows():
+            print(f"Processing {row['Time']} microburst ({i}/{self.microbursts.shape[0]}).", end='\r')
             if self._get_cadence(row['Time']) > self.max_cadence:
                 continue
             if current_date != row['Time'].date():
@@ -48,7 +49,7 @@ class Duration:
                 current_date = row['Time'].date()
             
             if self.validation_plots:
-                self._plot_microburst(self, row)
+                self._plot_microburst(row)
 
         return
 
@@ -88,6 +89,9 @@ class Duration:
         return
 
     def _plot_microburst(self, row, plot_window_s=2):
+        """
+        Make validation plots of each microburst.
+        """
         _, ax = plt.subplots()
         index = row['Time']
         dt = pd.Timedelta(seconds=plot_window_s/2)
@@ -98,17 +102,16 @@ class Duration:
             (self.hr['Time'] < time_range[1])
             )[0]
         idt_peak = np.where(self.hr['Time'] == index)[0]
-        ax.plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, 0], c='k')
-        ax.scatter(self.hr['Time'][idt_peak], self.hr['Col_counts'][idt_peak, 0], marker='*', s=200, c='r')
+        ax.plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, self.channel], c='k')
+        ax.scatter(self.hr['Time'][idt_peak], 
+            self.hr['Col_counts'][idt_peak, self.channel], marker='*', s=200, c='r')
 
         ax.set(
             xlim=time_range, xlabel='Time', 
             ylabel=f'Counts/{1000*float(self.hr.attrs["CADENCE"])} ms',
-            title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst validation")
+            title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation")
             )
         s = (
-            f'time_gap={row["time_gap"]}\nsaturated={row["saturated"]}\n'
-            f'n_zeros={row["n_zeros"]}\n\n'
             f'L={round(row["McIlwainL"], 1)}\n'
             f'MLT={round(row["MLT"], 1)}\n'
             f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})'
@@ -122,7 +125,7 @@ class Duration:
         plt.tight_layout()
 
         save_time = index.strftime("%Y%m%d_%H%M%S_%f")
-        save_name = (f'{save_time}_fu{self.fb_id}_microburst.png')
+        save_name = (f'{save_time}_fu{self.fb_id}_microburst_fit.png')
         save_path = pathlib.Path(self.plot_save_dir, save_name)
         plt.savefig(save_path)
         plt.close()
