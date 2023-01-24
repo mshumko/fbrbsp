@@ -71,15 +71,15 @@ class Duration:
         print(f'Microburst fitting completed in {(time.time() - start_time)//60} minutes.')
         return
 
-    def fit(self, row):
+    def fit(self, row, fit_interval_s=0.3):
         """
         Fit the microburst at time row['Time'] by a Gaussian. Energy channel defined by self.channel.
         """
         idt_peak = np.where(self.hr['Time'] == row['Time'])[0][0]
         t0_peak = self.hr['Time'][idt_peak]
         time_range = [
-                self.hr['Time'][idt_peak]-pd.Timedelta(seconds=0.25),
-                self.hr['Time'][idt_peak]+pd.Timedelta(seconds=0.25)
+                self.hr['Time'][idt_peak]-pd.Timedelta(seconds=fit_interval_s/2),
+                self.hr['Time'][idt_peak]+pd.Timedelta(seconds=fit_interval_s/2)
                 ]
         idt = np.where(
             (self.hr['Time'] > time_range[0]) &
@@ -179,6 +179,8 @@ class Duration:
         """
         self.microbursts = pd.read_csv(self.microburst_path)
         self.microbursts['Time'] = pd.to_datetime(self.microbursts['Time'])
+
+        self.microbursts = self.microbursts.loc[self.microbursts['Time']>='2017-01-01', :]
         return self.microbursts
 
     def _get_cadence(self, time):
@@ -186,8 +188,8 @@ class Duration:
         Gets the cadence at the time the microburst was observed. 
         """
         df = self.campaign.loc[:, ['HiRes Cadence', 'Start Date', 'End Date']]
-        for i, (cadence, start_date, end_date) in df.iterrows():
-             if (time >= start_date) & (time <= end_date):
+        for _, (cadence, start_date, end_date) in df.iterrows():
+             if (pd.Timestamp(time.date()) >= start_date) & (pd.Timestamp(time.date()) <= end_date):
                 return cadence
         raise ValueError(f'Could not find a corresponding HiRes cadence on {time}')
 
