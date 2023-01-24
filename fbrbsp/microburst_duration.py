@@ -40,6 +40,10 @@ class Duration:
         Loop over and fit each microburst that was detected when the HiRes cadence was faster or
         equal to self.max_cadence.
         """
+        self.fit_param_names = ['r2', 'adj_r2', 'A', 't0', 'fwhm']
+        if self.detrend:
+            self.fit_param_names.extend(['y-int', 'slope'])
+        self.microbursts[self.fit_param_names] = np.nan
         current_date = datetime.min
 
         for i, row in self.microbursts.iterrows():
@@ -50,18 +54,24 @@ class Duration:
                 self.hr = fbrbsp.load.firebird.Hires(self.fb_id, row['Time'].date()).load()
                 current_date = row['Time'].date()
 
-            self.fit(row, self.hr)
+            popt, r2, adj_r2 = self.fit(row)
+            if self.detrend:
+                self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
+            else:
+                self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
+
+            print(self.microbursts.loc[i, self.fit_param_names])
             
             if self.validation_plots:
-                self._plot_microburst(row)
+                self._plot_microburst(i, row)
 
         return
 
-    def fit(self, row, hr):
+    def fit(self, row):
         """
         Fit the microburst at time row['Time'] by a Gaussian. Energy channel defined by self.channel.
         """
-        idt_peak = np.where(self.hr['Time'] == row['Time'])[0]
+        idt_peak = np.where(self.hr['Time'] == row['Time'])[0][0]
         t0_peak = self.hr['Time'][idt_peak]
         time_range = [
                 self.hr['Time'][idt_peak]-pd.Timedelta(seconds=0.25),
@@ -94,10 +104,9 @@ class Duration:
                     raise
             if len(w):  # only print if warning emitted.
                 print(w[0].message, '\n', p0, popt)
-        # TODO: Return parameters here
-        return
+        return popt, r2, adj_r2
 
-    def fit_gaus(self, idt, p0):
+    def _fit_gaus(self, idt, p0):
         """
         Fits a gaussian shape with an optional linear detrend term.
         """
@@ -166,10 +175,6 @@ class Duration:
         """
         self.microbursts = pd.read_csv(self.microburst_path)
         self.microbursts['Time'] = pd.to_datetime(self.microbursts['Time'])
-        self.fit_param_names = ['r2', 'adj_r2', 'A', 't0', 'fwhm']
-        if self.detrend:
-            self.fit_param_names.extend(['y-int', 'slope'])
-        self.microbursts[self.fit_param_names] = np.nan
         return self.microbursts
 
     def _get_cadence(self, time):
@@ -195,7 +200,7 @@ class Duration:
         self.campaign['HiRes Cadence'] = [float(c.split()[0]) for c in self.campaign['HiRes Cadence']]
         return
 
-    def _plot_microburst(self, row, plot_window_s=2):
+    def _plot_microburst(self, i, row, plot_window_s=2):
         """
         Make validation plots of each microburst.
         """
