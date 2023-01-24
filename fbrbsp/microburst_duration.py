@@ -225,7 +225,7 @@ class Duration:
         x_data_seconds = (time_array-current_date).total_seconds()
         # y_data = self.hilt_data.loc[plot_time_range[0]:plot_time_range[1], 'counts']
 
-        popt = np.zeros_like(self.fit_param_names)
+        popt = np.zeros_like(self.fit_param_names, dtype=object)
         popt[0] = self.microbursts.loc[i, 'A']
         popt[1] = (self.microbursts.loc[i, 't0'] - current_date).total_seconds()
         popt[2] = self.microbursts.loc[i, 'fwhm']/2.355 # Convert the Gaussian FWHM to std
