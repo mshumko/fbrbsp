@@ -65,7 +65,7 @@ class Duration:
                 self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
             
             if self.validation_plots:
-                self._plot_microburst(i, row)
+                self._plot_microburst(i, self.microbursts.loc[i, :])
 
         self.microbursts.to_csv(self.microburst_path, index=False)
         print(f'Microburst fitting completed in {(time.time() - start_time)//60} minutes.')
@@ -179,8 +179,6 @@ class Duration:
         """
         self.microbursts = pd.read_csv(self.microburst_path)
         self.microbursts['Time'] = pd.to_datetime(self.microbursts['Time'])
-
-        self.microbursts = self.microbursts.loc[self.microbursts['Time']>='2017-01-01', :]
         return self.microbursts
 
     def _get_cadence(self, time):
