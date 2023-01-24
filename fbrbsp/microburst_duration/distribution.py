@@ -11,7 +11,8 @@ fb_id = 3
 catalog_version=5
 max_width_ms = 500
 r2_thresh = 0.8
-width_key = 'fwhm'
+ch = 0
+width_key = f'fwhm_{ch}'
 width_bins = np.linspace(0, max_width_ms+0.001, num=25)
 
 microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
@@ -21,7 +22,7 @@ print(f'{sum(~np.isnan(df[width_key]))} total microbursts fit')
 
 df[width_key] = 1000*df[width_key]
 df = df[df[width_key] < max_width_ms]
-df = df[df.r2 > r2_thresh]
+df = df[df[f'r2_{ch}'] > r2_thresh]
 
 print(f'{df[width_key].shape[0]} well-fit microbursts.')
 
