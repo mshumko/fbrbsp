@@ -17,7 +17,7 @@ import fbrbsp.load.firebird
 
 class Duration:
     def __init__(self, fb_id, catalog_version, detrend=True, max_cadence=18.75, 
-                channel=0, validation_plots=True) -> None:
+                channel=0, validation_plots=False) -> None:
         self.fb_id = fb_id  
         self.microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
         self.microburst_path = fbrbsp.config['here'].parent / 'data' / self.microburst_name
@@ -132,7 +132,7 @@ class Duration:
         popt_np = -1*np.ones(len(popt), dtype=object)
         popt_np[0] = popt[0]
         popt_np[1] = current_date + pd.Timedelta(seconds=float(popt[1]))
-        popt_np[2] = (2*np.sqrt(2*np.log(2)))*popt[2]
+        popt_np[2] = np.abs((2*np.sqrt(2*np.log(2)))*popt[2])
         if len(popt) == 5:
             # If superposed a Gaussian on a linear trend...
             popt_np[3:] = popt[3:]
@@ -272,5 +272,5 @@ class Duration:
 
 
 if __name__ == "__main__":
-    d = Duration(3, 5)
+    d = Duration(3, 5, validation_plots=False)
     d.loop()
