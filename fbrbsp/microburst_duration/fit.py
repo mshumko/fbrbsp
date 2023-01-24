@@ -42,9 +42,10 @@ class Duration:
         equal to self.max_cadence.
         """
         start_time = time.time()
-        self.fit_param_names = ['r2', 'adj_r2', 'A', 't0', 'fwhm']
+        self.fit_param_names = [f'r2_ch{self.channel}', f'adj_r2_ch{self.channel}', 
+            f'A_ch{self.channel}', f't0_ch{self.channel}', f'fwhm_ch{self.channel}']
         if self.detrend:
-            self.fit_param_names.extend(['y-int', 'slope'])
+            self.fit_param_names.extend([f'y_int_ch{self.channel}', f'slope_ch{self.channel}'])
         self.microbursts[self.fit_param_names] = np.nan
         current_date = datetime.min
 
@@ -143,7 +144,7 @@ class Duration:
         except ValueError as err:
             if 'Input contains NaN, infinity or a value too large' in str(err):
                 print(f'popt={popt}')
-                print(f'y-data={y_data}')
+                print(f'y_data={y_data}')
                 print(f'y_pred={y_pred}')
             raise
         return popt_np, np.sqrt(np.diag(pcov)), r2, adj_r2
@@ -230,13 +231,13 @@ class Duration:
 
         if self.detrend:
             popt = np.nan*np.zeros(5)
-            popt[3] = self.microbursts.loc[i, 'y-int']
-            popt[4] = self.microbursts.loc[i, 'slope']
+            popt[3] = self.microbursts.loc[i, f'y_int_ch{self.channel}']
+            popt[4] = self.microbursts.loc[i, f'slope_ch{self.channel}']
         else:
             popt = np.nan*np.zeros(3)
-        popt[0] = self.microbursts.loc[i, 'A']
-        popt[1] = (self.microbursts.loc[i, 't0'] - current_date).total_seconds()
-        popt[2] = self.microbursts.loc[i, 'fwhm']/2.355 # Convert the Gaussian FWHM to std
+        popt[0] = self.microbursts.loc[i, f'A_ch{self.channel}']
+        popt[1] = (self.microbursts.loc[i, f't0_ch{self.channel}'] - current_date).total_seconds()
+        popt[2] = self.microbursts.loc[i, f'fwhm_ch{self.channel}']/2.355 # Convert the Gaussian FWHM to std
 
         gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
         ax.plot(time_array, gaus_y, c='r')
@@ -250,9 +251,9 @@ class Duration:
             f'L={round(row["McIlwainL"], 1)}\n'
             f'MLT={round(row["MLT"], 1)}\n'
             f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})\n'
-            f"FWHM={round(self.microbursts.loc[i, 'fwhm'], 2)} [s]\n"
-            f"R^2 = {round(self.microbursts.loc[i, 'r2'], 2)}\n"
-            f"adj_R^2 = {round(self.microbursts.loc[i, 'adj_r2'], 2)}\n"
+            f"FWHM={round(self.microbursts.loc[i, f'fwhm_{self.channel}'], 2)} [s]\n"
+            f"R^2 = {round(self.microbursts.loc[i, f'r2_{self.channel}'], 2)}\n"
+            f"adj_R^2 = {round(self.microbursts.loc[i, f'adj_r2_{self.channel}'], 2)}\n"
             )
         ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
         ax.set_ylim(0, 1.2*np.max(self.hr['Col_counts'][idt, self.channel]))
@@ -264,7 +265,7 @@ class Duration:
         plt.tight_layout()
 
         save_time = index.strftime("%Y%m%d_%H%M%S_%f")
-        save_name = (f'{save_time}_fu{self.fb_id}_microburst_fit.png')
+        save_name = (f'{save_time}_fu{self.fb_id}_ch{self.channel}_microburst_fit.png')
         save_path = pathlib.Path(self.plot_save_dir, save_name)
         plt.savefig(save_path)
         plt.close()
