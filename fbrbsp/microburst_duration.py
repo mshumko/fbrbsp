@@ -1,6 +1,7 @@
 import pathlib
 from datetime import datetime, timedelta
 import warnings
+import time
 
 import numpy as np
 import scipy.optimize
@@ -40,6 +41,7 @@ class Duration:
         Loop over and fit each microburst that was detected when the HiRes cadence was faster or
         equal to self.max_cadence.
         """
+        start_time = time.time()
         self.fit_param_names = ['r2', 'adj_r2', 'A', 't0', 'fwhm']
         if self.detrend:
             self.fit_param_names.extend(['y-int', 'slope'])
@@ -66,6 +68,7 @@ class Duration:
                 self._plot_microburst(i, row)
 
         self.microbursts.to_csv(self.microburst_path, index=False)
+        print(f'Microburst fitting completed in {(time.time() - start_time)//60} minutes.')
         return
 
     def fit(self, row):
