@@ -60,7 +60,7 @@ class Duration:
             else:
                 self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
 
-            print(self.microbursts.loc[i, self.fit_param_names])
+            # print(self.microbursts.loc[i, self.fit_param_names])
             
             if self.validation_plots:
                 self._plot_microburst(i, row)
@@ -205,6 +205,7 @@ class Duration:
         Make validation plots of each microburst.
         """
         _, ax = plt.subplots()
+        # Plot the data
         index = row['Time']
         dt = pd.Timedelta(seconds=plot_window_s/2)
         time_range = (index-dt, index+dt)
@@ -218,6 +219,23 @@ class Duration:
         ax.scatter(self.hr['Time'][idt_peak], 
             self.hr['Col_counts'][idt_peak, self.channel], marker='*', s=200, c='r')
 
+        # Plot the fit
+        time_array = self.hr['Time'][idt]
+        current_date = time_array[0].floor('d')
+        x_data_seconds = (time_array-current_date).total_seconds()
+        # y_data = self.hilt_data.loc[plot_time_range[0]:plot_time_range[1], 'counts']
+
+        popt = np.zeros_like(self.fit_param_names)
+        popt[0] = self.microbursts.loc[i, 'A']
+        popt[1] = (self.microbursts.loc[i, 't0'] - current_date).total_seconds()
+        popt[2] = self.microbursts.loc[i, 'fwhm']/2.355 # Convert the Gaussian FWHM to std
+        if self.detrend:
+            popt[4] = self.microbursts.loc[i, 'y-int']
+            popt[5] = self.microbursts.loc[i, 'slope']
+
+        gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
+        ax.plot(time_array, gaus_y, c='r')
+
         ax.set(
             xlim=time_range, xlabel='Time', 
             ylabel=f'Counts/{1000*float(self.hr.attrs["CADENCE"])} ms',
@@ -226,7 +244,10 @@ class Duration:
         s = (
             f'L={round(row["McIlwainL"], 1)}\n'
             f'MLT={round(row["MLT"], 1)}\n'
-            f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})'
+            f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})\n'
+            f"FWHM={round(self.microbursts.loc[i, 'fwhm'], 2)} [s]\n"
+            f"R^2 = {round(self.microbursts.loc[i, 'r2'], 2)}\n"
+            f"adj_R^2 = {round(self.microbursts.loc[i, 'adj_r2'], 2)}\n"
             )
         ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
