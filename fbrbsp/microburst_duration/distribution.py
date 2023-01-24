@@ -10,7 +10,7 @@ import fbrbsp
 fb_id = 3
 catalog_version=5
 max_width_ms = 500
-r2_thresh = 0.8
+r2_thresh = 0.9
 ch = 0
 width_key = f'fwhm_{ch}'
 width_bins = np.linspace(0, max_width_ms+0.001, num=25)
