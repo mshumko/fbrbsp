@@ -42,10 +42,10 @@ class Duration:
         equal to self.max_cadence.
         """
         start_time = time.time()
-        self.fit_param_names = [f'r2_ch{self.channel}', f'adj_r2_ch{self.channel}', 
-            f'A_ch{self.channel}', f't0_ch{self.channel}', f'fwhm_ch{self.channel}']
+        self.fit_param_names = [f'r2_{self.channel}', f'adj_r2_{self.channel}', 
+            f'A_{self.channel}', f't0_{self.channel}', f'fwhm_{self.channel}']
         if self.detrend:
-            self.fit_param_names.extend([f'y_int_ch{self.channel}', f'slope_ch{self.channel}'])
+            self.fit_param_names.extend([f'y_int_{self.channel}', f'slope_{self.channel}'])
         self.microbursts[self.fit_param_names] = np.nan
         current_date = datetime.min
 
@@ -231,13 +231,13 @@ class Duration:
 
         if self.detrend:
             popt = np.nan*np.zeros(5)
-            popt[3] = self.microbursts.loc[i, f'y_int_ch{self.channel}']
-            popt[4] = self.microbursts.loc[i, f'slope_ch{self.channel}']
+            popt[3] = self.microbursts.loc[i, f'y_int_{self.channel}']
+            popt[4] = self.microbursts.loc[i, f'slope_{self.channel}']
         else:
             popt = np.nan*np.zeros(3)
-        popt[0] = self.microbursts.loc[i, f'A_ch{self.channel}']
-        popt[1] = (self.microbursts.loc[i, f't0_ch{self.channel}'] - current_date).total_seconds()
-        popt[2] = self.microbursts.loc[i, f'fwhm_ch{self.channel}']/2.355 # Convert the Gaussian FWHM to std
+        popt[0] = self.microbursts.loc[i, f'A_{self.channel}']
+        popt[1] = (self.microbursts.loc[i, f't0_{self.channel}'] - current_date).total_seconds()
+        popt[2] = self.microbursts.loc[i, f'fwhm_{self.channel}']/2.355 # Convert the Gaussian FWHM to std
 
         gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
         ax.plot(time_array, gaus_y, c='r')
@@ -265,7 +265,7 @@ class Duration:
         plt.tight_layout()
 
         save_time = index.strftime("%Y%m%d_%H%M%S_%f")
-        save_name = (f'{save_time}_fu{self.fb_id}_ch{self.channel}_microburst_fit.png')
+        save_name = (f'{save_time}_fu{self.fb_id}_{self.channel}_microburst_fit.png')
         save_path = pathlib.Path(self.plot_save_dir, save_name)
         plt.savefig(save_path)
         plt.close()
@@ -273,5 +273,6 @@ class Duration:
 
 
 if __name__ == "__main__":
-    d = Duration(3, 5, validation_plots=False)
-    d.loop()
+    for ch in range(6):
+        d = Duration(3, 5, validation_plots=False, channel=ch)
+        d.loop()
