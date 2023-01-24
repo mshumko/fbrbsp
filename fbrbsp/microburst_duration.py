@@ -47,7 +47,7 @@ class Duration:
         current_date = datetime.min
 
         for i, row in self.microbursts.iterrows():
-            print(f"Processing {row['Time']} microburst ({i}/{self.microbursts.shape[0]}).", end='\r')
+            print(f"Processing {row['Time']} microburst ({i}/{self.microbursts.shape[0]}).")
             if self._get_cadence(row['Time']) > self.max_cadence:
                 continue
             if current_date != row['Time'].date():
@@ -55,16 +55,17 @@ class Duration:
                 current_date = row['Time'].date()
 
             popt, r2, adj_r2 = self.fit(row)
+            if popt is None:
+                continue  # Fit failed. Leave the fit columns as nans in self.microburst catalog.
             if self.detrend:
                 self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
             else:
                 self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
-
-            # print(self.microbursts.loc[i, self.fit_param_names])
             
             if self.validation_plots:
                 self._plot_microburst(i, row)
 
+        self.microbursts.to_csv(self.microburst_path, index=False)
         return
 
     def fit(self, row):
@@ -99,7 +100,7 @@ class Duration:
             except RuntimeError as err:
                 if ('Optimal parameters not found: Number of calls '
                     'to function has reached maxfev') in str(err):
-                    return
+                    return (None, None, None)
                 else:
                     raise
             if len(w):  # only print if warning emitted.
@@ -223,15 +224,16 @@ class Duration:
         time_array = self.hr['Time'][idt]
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
-        # y_data = self.hilt_data.loc[plot_time_range[0]:plot_time_range[1], 'counts']
 
-        popt = np.zeros_like(self.fit_param_names, dtype=object)
+        if self.detrend:
+            popt = np.nan*np.zeros(5)
+            popt[3] = self.microbursts.loc[i, 'y-int']
+            popt[4] = self.microbursts.loc[i, 'slope']
+        else:
+            popt = np.nan*np.zeros(3)
         popt[0] = self.microbursts.loc[i, 'A']
         popt[1] = (self.microbursts.loc[i, 't0'] - current_date).total_seconds()
         popt[2] = self.microbursts.loc[i, 'fwhm']/2.355 # Convert the Gaussian FWHM to std
-        if self.detrend:
-            popt[4] = self.microbursts.loc[i, 'y-int']
-            popt[5] = self.microbursts.loc[i, 'slope']
 
         gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
         ax.plot(time_array, gaus_y, c='r')
@@ -250,6 +252,7 @@ class Duration:
             f"adj_R^2 = {round(self.microbursts.loc[i, 'adj_r2'], 2)}\n"
             )
         ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
+        ax.set_ylim(0, 1.2*np.max(self.hr['Col_counts'][idt, self.channel]))
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
         ax.xaxis.set_major_locator(locator)
         fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
