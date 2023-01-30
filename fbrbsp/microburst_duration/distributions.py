@@ -18,13 +18,15 @@ width_bins = np.linspace(0, max_width_ms+0.001, num=50)
 microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
 microburst_path = fbrbsp.config['here'].parent / 'data' / microburst_name
 df = pd.read_csv(microburst_path)
+r2_keys = [key for key in df.columns if 'r2' == key.split('_')[0]]
+fwhm_keys = [key for key in df.columns if 'fwhm' == key.split('_')[0]]
 # Drop microbursts that were not fit for one reason or another.
 df = df.dropna().reset_index()
+print(f"Number of fits {df[fwhm_keys[0]].shape[0]}")
+
 
 # Filter out microbursts where none of the energy channels had an r2>r2_thresh
 # and the fwhm were not within a % of each other.
-r2_keys = [key for key in df.columns if 'r2' == key.split('_')[0]]
-fwhm_keys = [key for key in df.columns if 'fwhm' == key.split('_')[0]]
 df['max_r2'] = df[r2_keys].max(axis=1)
 df.loc[df['max_r2'] < r2_thresh, :] = np.nan
 print(f"Number of fits NaN'd {sum(np.isnan(df[fwhm_keys[0]]))}")
