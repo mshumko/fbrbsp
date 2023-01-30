@@ -300,7 +300,7 @@ class Duration:
             ax[i].text(0.01, 1, fit_params, va='top', transform=ax[i].transAxes, color=color)
 
         ax[0].set(
-            title=row['Time'].strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation")
+            title=row['Time'].strftime(f"%Y-%m-%d %H:%M:%S.%f\nFU{self.fb_id} microburst fit validation")
             )
         ax[-1].set(xlim=time_range, xlabel='Time')
         s = (
