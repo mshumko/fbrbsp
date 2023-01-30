@@ -82,7 +82,7 @@ class Duration:
                 self.microbursts.loc[i, keys] = [r2, adj_r2, *popt]
             
             if self.validation_plots:
-                self._plot_microburst(i, self.microbursts.loc[i, :])
+                self._plot_microburst(self.microbursts.loc[i, :])
 
         self.microbursts.to_csv(self.microburst_path, index=False)
         print(f'Microburst fitting completed in {(time.time() - start_time)//60} minutes.')
@@ -238,12 +238,12 @@ class Duration:
             raise ValueError(f'No fit keys were found for channel {channel}.')
         return keys
 
-    def _plot_microburst(self, i, row, plot_window_s=2):
+    def _plot_microburst(self, row, plot_window_s=2):
         """
         Make validation plots of each microburst.
         """
         _plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
-        _, ax = plt.subplots(2, 1)
+        _, ax = plt.subplots(len(self.channels)+1, 1, figsize=(8, 10), sharex=True)
         # Plot the data
         index = row['Time']
         dt = pd.Timedelta(seconds=plot_window_s/2)
@@ -253,10 +253,11 @@ class Duration:
             (self.hr['Time'] > time_range[0]) &
             (self.hr['Time'] < time_range[1])
             )[0]
-        idt_peak = np.where(self.hr['Time'] == index)[0]
+        # idt_peak = np.where(self.hr['Time'] == index)[0]
 
-        for color, channel in zip(_plot_colors, self.channels):
-            ax[0].plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, channel], c=color)
+        for i, (color, channel) in enumerate(zip(_plot_colors, self.channels)):
+            ax[i].plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, channel], c=color)
+            ax[i].set_ylabel(f'{channel=}\nCounts/{1000*float(self.hr.attrs["CADENCE"])} ms')
         # ax.scatter(self.hr['Time'][idt_peak], 
         #     self.hr['Col_counts'][idt_peak, 0], marker='*', s=200, c='r')
 
@@ -265,43 +266,41 @@ class Duration:
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
 
-        for color, channel in zip(_plot_colors, self.channels):
+        for i, (color, channel) in enumerate(zip(_plot_colors, self.channels)):
             if self.detrend:
                 popt = np.nan*np.zeros(5)
-                popt[3] = self.microbursts.loc[i, f'y_int_{channel}']
-                popt[4] = self.microbursts.loc[i, f'slope_{channel}']
+                popt[3] = row[f'y_int_{channel}']
+                popt[4] = row[f'slope_{channel}']
             else:
                 popt = np.nan*np.zeros(3)
-            popt[0] = self.microbursts.loc[i, f'A_{channel}']
-            popt[1] = (self.microbursts.loc[i, f't0_{channel}'] - current_date).total_seconds()
-            popt[2] = self.microbursts.loc[i, f'fwhm_{channel}']/2.355 # Convert the Gaussian FWHM to std
+            popt[0] = row[f'A_{channel}']
+            # if np.isnan(popt[0]):
+            #     continue
+            popt[1] = (row[f't0_{channel}'] - current_date).total_seconds()
+            popt[2] = row[f'fwhm_{channel}']/2.355 # Convert the Gaussian FWHM to std
 
             gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
-            ax[0].plot(time_array, gaus_y, c=color, ls='--')
+            ax[i].plot(time_array, gaus_y, c=color, ls='--')
 
-        ax[0].set(
-            xlim=time_range, xlabel='Time', 
-            ylabel=f'Counts/{1000*float(self.hr.attrs["CADENCE"])} ms',
-            title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation")
-            )
-        # s = (
-        #     f'L={round(row["McIlwainL"], 1)}\n'
-        #     f'MLT={round(row["MLT"], 1)}\n'
-        #     f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})\n'
+            max_counts = np.max(self.hr['Col_counts'][idt, channel])
+            ax[i].set_ylim(0, 1.2*max_counts)
+
+        ax[0].set(title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation"))
+        ax[-1].set(xlim=time_range, xlabel='Time')
+        s = (
+            f'L={round(row["McIlwainL"], 1)}\n'
+            f'MLT={round(row["MLT"], 1)}\n'
+            f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})'
+        )
         #     f"FWHM={round(self.microbursts.loc[i, f'fwhm_{self.channel}'], 2)} [s]\n"
         #     f"R^2 = {round(self.microbursts.loc[i, f'r2_{self.channel}'], 2)}\n"
         #     f"adj_R^2 = {round(self.microbursts.loc[i, f'adj_r2_{self.channel}'], 2)}\n"
         #     )
-        # ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
-        # Col_counts are indexed via [idt][self.channels] and not [idt, self.channels]
-        # because idt and self.channels are different shapes and numpy cant broadcast
-        # them to the same shape. See https://stackoverflow.com/a/46125367.
-        max_counts = 1.2*np.max(self.hr['Col_counts'][idt][self.channels])
-        ax[0].set_ylim(0, max_counts)
+        ax[0].text(0.7, 1, s, va='top', transform=ax[0].transAxes, color='red')
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
-        ax[0].xaxis.set_major_locator(locator)
+        ax[-1].xaxis.set_major_locator(locator)
         fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
-        ax[0].xaxis.set_major_formatter(fmt)
+        ax[-1].xaxis.set_major_formatter(fmt)
 
         plt.tight_layout()
 
