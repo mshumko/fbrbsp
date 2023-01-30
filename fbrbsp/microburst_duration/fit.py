@@ -17,14 +17,36 @@ import fbrbsp.load.firebird
 
 class Duration:
     def __init__(self, fb_id, catalog_version, detrend=True, max_cadence=18.75, 
-                channel=0, validation_plots=False) -> None:
+                channels=np.arange(6), fit_interval_s=0.3, validation_plots=False) -> None:
+        """
+        Fit microbursts with a gaussian + linear trend
+
+        Parameters
+        ----------
+        fb_id: int
+            FIREBIRD unit id: 3 or 4.
+        catalog_version: int
+            The microburst catalog version to load.
+        detrend: bool
+            Wether to turn the linear trend on or off
+        max_cadence: float
+            Skips data that was taken at a cadence > max_cadence (e.g., 50 ms).
+        channels: list or np.ndarray
+            What energy channels (1-6) to fit.
+        fit_interval_s: float
+            The interval of data to fit, in units of seconds.
+        validation_plots: bool
+            Wether or not to make validation plots for every fit. The plots are saved in
+            the fbrbsp/ploys/<microburst_catalog_name>/ directory.
+        """
         self.fb_id = fb_id  
         self.microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
         self.microburst_path = fbrbsp.config['here'].parent / 'data' / self.microburst_name
         self.detrend = detrend
         self.max_cadence = max_cadence
-        self.channel = channel
+        self.channels = channels
         self.validation_plots = validation_plots
+        self.fit_interval_s = fit_interval_s
 
         if self.validation_plots:
             self.plot_save_dir = pathlib.Path(fbrbsp.config['here'].parent, 'plots', 
@@ -33,7 +55,7 @@ class Duration:
 
         self._load_catalog()
         self._load_campaign_dates()
-
+        self._create_empty_columns()
         return
 
     def loop(self):
@@ -42,11 +64,6 @@ class Duration:
         equal to self.max_cadence.
         """
         start_time = time.time()
-        self.fit_param_names = [f'r2_{self.channel}', f'adj_r2_{self.channel}', 
-            f'A_{self.channel}', f't0_{self.channel}', f'fwhm_{self.channel}']
-        if self.detrend:
-            self.fit_param_names.extend([f'y_int_{self.channel}', f'slope_{self.channel}'])
-        self.microbursts[self.fit_param_names] = np.nan
         current_date = datetime.min
 
         for i, row in self.microbursts.iterrows():
@@ -57,13 +74,12 @@ class Duration:
                 self.hr = fbrbsp.load.firebird.Hires(self.fb_id, row['Time'].date()).load()
                 current_date = row['Time'].date()
 
-            popt, r2, adj_r2 = self.fit(row)
-            if popt is None:
-                continue  # Fit failed. Leave the fit columns as nans in self.microburst catalog.
-            if self.detrend:
-                self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
-            else:
-                self.microbursts.loc[i, self.fit_param_names] = [r2, adj_r2, *popt]
+            for channel in self.channels:
+                popt, r2, adj_r2 = self.fit(row, channel)
+                if popt is None:
+                    continue  # Fit failed. Leave the fit columns as nans in self.microburst catalog.
+                keys = self._get_fit_keys(channel)
+                self.microbursts.loc[i, keys] = [r2, adj_r2, *popt]
             
             if self.validation_plots:
                 self._plot_microburst(i, self.microbursts.loc[i, :])
@@ -72,15 +88,15 @@ class Duration:
         print(f'Microburst fitting completed in {(time.time() - start_time)//60} minutes.')
         return
 
-    def fit(self, row, fit_interval_s=0.3):
+    def fit(self, row, channel):
         """
-        Fit the microburst at time row['Time'] by a Gaussian. Energy channel defined by self.channel.
+        Fit the microburst at time row['Time'] by a Gaussian.
         """
         idt_peak = np.where(self.hr['Time'] == row['Time'])[0][0]
         t0_peak = self.hr['Time'][idt_peak]
         time_range = [
-                self.hr['Time'][idt_peak]-pd.Timedelta(seconds=fit_interval_s/2),
-                self.hr['Time'][idt_peak]+pd.Timedelta(seconds=fit_interval_s/2)
+                self.hr['Time'][idt_peak]-pd.Timedelta(seconds=self.fit_interval_s/2),
+                self.hr['Time'][idt_peak]+pd.Timedelta(seconds=self.fit_interval_s/2)
                 ]
         idt = np.where(
             (self.hr['Time'] > time_range[0]) &
@@ -89,18 +105,18 @@ class Duration:
 
         if self.detrend:
             p0 = [
-                self.hr['Col_counts'][idt_peak, self.channel],   # gauss amplitude 
+                self.hr['Col_counts'][idt_peak, channel],   # gauss amplitude 
                 t0_peak,         # gauss center time
                 0.1,    # 2x gaus std.
-                np.median(self.hr['Col_counts'][idt, self.channel]), # y-intercept
+                np.median(self.hr['Col_counts'][idt, channel]), # y-intercept
                 0           # Slope
                 ]
         else:
-            p0 = [self.hr['Col_counts'][idt_peak, self.channel], t0_peak, 0.1]
+            p0 = [self.hr['Col_counts'][idt_peak, channel], t0_peak, 0.1]
 
         with warnings.catch_warnings(record=True) as w:
             try:
-                popt, pcov, r2, adj_r2 = self._fit_gaus(idt, p0)
+                popt, pcov, r2, adj_r2 = self._fit_gaus(idt, p0, channel)
             except RuntimeError as err:
                 if ('Optimal parameters not found: Number of calls '
                     'to function has reached maxfev') in str(err):
@@ -111,14 +127,14 @@ class Duration:
                 print(w[0].message, '\n', p0, popt)
         return popt, r2, adj_r2
 
-    def _fit_gaus(self, idt, p0):
+    def _fit_gaus(self, idt, p0, channel):
         """
         Fits a gaussian shape with an optional linear detrend term.
         """
         x_data = self.hr['Time'][idt]
         current_date = x_data[0].floor('d')
         x_data_seconds = (x_data-current_date).total_seconds()
-        y_data = self.hr['Col_counts'][idt, self.channel]
+        y_data = self.hr['Col_counts'][idt, channel]
 
         if len(x_data) < len(p0):
             raise ValueError('Not enough data points to fit. Increase the '
@@ -205,11 +221,28 @@ class Duration:
         self.campaign['HiRes Cadence'] = [float(c.split()[0]) for c in self.campaign['HiRes Cadence']]
         return
 
+    def _create_empty_columns(self):
+        for channel in self.channels:
+            self.fit_param_names = [f'r2_{channel}', f'adj_r2_{channel}', 
+                f'A_{channel}', f't0_{channel}', f'fwhm_{channel}']
+            if self.detrend:
+                self.fit_param_names.extend([f'y_int_{channel}', f'slope_{channel}'])
+            self.microbursts[self.fit_param_names] = np.nan
+        return
+
+    def _get_fit_keys(self, channel):
+        channel = str(channel)
+        keys = [key for key in self.fit_param_names if channel==key.split('_')[-1]]
+        if len(keys) == 0:
+            raise ValueError(f'No fit keys were found for channel {channel}.')
+        return keys
+
     def _plot_microburst(self, i, row, plot_window_s=2):
         """
         Make validation plots of each microburst.
         """
-        _, ax = plt.subplots()
+        _plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
+        _, ax = plt.subplots(2, 1)
         # Plot the data
         index = row['Time']
         dt = pd.Timedelta(seconds=plot_window_s/2)
@@ -220,52 +253,55 @@ class Duration:
             (self.hr['Time'] < time_range[1])
             )[0]
         idt_peak = np.where(self.hr['Time'] == index)[0]
-        ax.plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, self.channel], c='k')
-        ax.scatter(self.hr['Time'][idt_peak], 
-            self.hr['Col_counts'][idt_peak, self.channel], marker='*', s=200, c='r')
+
+        for color, channel in zip(_plot_colors, self.channels):
+            ax[0].plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, channel], c=color)
+        # ax.scatter(self.hr['Time'][idt_peak], 
+        #     self.hr['Col_counts'][idt_peak, 0], marker='*', s=200, c='r')
 
         # Plot the fit
         time_array = self.hr['Time'][idt]
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
 
-        if self.detrend:
-            popt = np.nan*np.zeros(5)
-            popt[3] = self.microbursts.loc[i, f'y_int_{self.channel}']
-            popt[4] = self.microbursts.loc[i, f'slope_{self.channel}']
-        else:
-            popt = np.nan*np.zeros(3)
-        popt[0] = self.microbursts.loc[i, f'A_{self.channel}']
-        popt[1] = (self.microbursts.loc[i, f't0_{self.channel}'] - current_date).total_seconds()
-        popt[2] = self.microbursts.loc[i, f'fwhm_{self.channel}']/2.355 # Convert the Gaussian FWHM to std
+        for color, channel in zip(_plot_colors, self.channels):
+            if self.detrend:
+                popt = np.nan*np.zeros(5)
+                popt[3] = self.microbursts.loc[i, f'y_int_{channel}']
+                popt[4] = self.microbursts.loc[i, f'slope_{channel}']
+            else:
+                popt = np.nan*np.zeros(3)
+            popt[0] = self.microbursts.loc[i, f'A_{channel}']
+            popt[1] = (self.microbursts.loc[i, f't0_{channel}'] - current_date).total_seconds()
+            popt[2] = self.microbursts.loc[i, f'fwhm_{channel}']/2.355 # Convert the Gaussian FWHM to std
 
-        gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
-        ax.plot(time_array, gaus_y, c='r')
+            gaus_y = Duration.gaus_lin_function(x_data_seconds, *popt)
+            ax[0].plot(time_array, gaus_y, c=color, ls='--')
 
-        ax.set(
+        ax[0].set(
             xlim=time_range, xlabel='Time', 
             ylabel=f'Counts/{1000*float(self.hr.attrs["CADENCE"])} ms',
             title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation")
             )
-        s = (
-            f'L={round(row["McIlwainL"], 1)}\n'
-            f'MLT={round(row["MLT"], 1)}\n'
-            f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})\n'
-            f"FWHM={round(self.microbursts.loc[i, f'fwhm_{self.channel}'], 2)} [s]\n"
-            f"R^2 = {round(self.microbursts.loc[i, f'r2_{self.channel}'], 2)}\n"
-            f"adj_R^2 = {round(self.microbursts.loc[i, f'adj_r2_{self.channel}'], 2)}\n"
-            )
-        ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
-        ax.set_ylim(0, 1.2*np.max(self.hr['Col_counts'][idt, self.channel]))
+        # s = (
+        #     f'L={round(row["McIlwainL"], 1)}\n'
+        #     f'MLT={round(row["MLT"], 1)}\n'
+        #     f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})\n'
+        #     f"FWHM={round(self.microbursts.loc[i, f'fwhm_{self.channel}'], 2)} [s]\n"
+        #     f"R^2 = {round(self.microbursts.loc[i, f'r2_{self.channel}'], 2)}\n"
+        #     f"adj_R^2 = {round(self.microbursts.loc[i, f'adj_r2_{self.channel}'], 2)}\n"
+        #     )
+        # ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
+        ax[0].set_ylim(0, 1.2*np.max(self.hr['Col_counts'][idt, self.channels]))
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
-        ax.xaxis.set_major_locator(locator)
+        ax[0].xaxis.set_major_locator(locator)
         fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
-        ax.xaxis.set_major_formatter(fmt)
+        ax[0].xaxis.set_major_formatter(fmt)
 
         plt.tight_layout()
 
         save_time = index.strftime("%Y%m%d_%H%M%S_%f")
-        save_name = (f'{save_time}_fu{self.fb_id}_{self.channel}_microburst_fit.png')
+        save_name = (f'{save_time}_fu{self.fb_id}_microburst_fit.png')
         save_path = pathlib.Path(self.plot_save_dir, save_name)
         plt.savefig(save_path)
         plt.close()
@@ -273,6 +309,8 @@ class Duration:
 
 
 if __name__ == "__main__":
-    for ch in range(6):
-        d = Duration(3, 5, validation_plots=False, channel=ch)
-        d.loop()
+    # for ch in range(6):
+    #     d = Duration(3, 5, validation_plots=False, channels=ch)
+    #     d.loop()
+    d = Duration(3, 5, validation_plots=True, channels=[0])
+    d.loop()
