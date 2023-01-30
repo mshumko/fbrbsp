@@ -46,7 +46,7 @@ class Duration:
         self.max_cadence = max_cadence
         self.channels = channels
         self.validation_plots = validation_plots
-        self.fit_interval_s = fit_interval_s
+        self.fit_interval_s = pd.Timedelta(seconds=fit_interval_s)
 
         if self.validation_plots:
             self.plot_save_dir = pathlib.Path(fbrbsp.config['here'].parent, 'plots', 
@@ -95,8 +95,8 @@ class Duration:
         idt_peak = np.where(self.hr['Time'] == row['Time'])[0][0]
         t0_peak = self.hr['Time'][idt_peak]
         time_range = [
-                self.hr['Time'][idt_peak]-pd.Timedelta(seconds=self.fit_interval_s/2),
-                self.hr['Time'][idt_peak]+pd.Timedelta(seconds=self.fit_interval_s/2)
+                self.hr['Time'][idt_peak]-self.fit_interval_s/2,
+                self.hr['Time'][idt_peak]+self.fit_interval_s/2
                 ]
         idt = np.where(
             (self.hr['Time'] > time_range[0]) &
@@ -244,16 +244,15 @@ class Duration:
         """
         _plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
         _, ax = plt.subplots(len(self.channels), 1, figsize=(8, 10), sharex=True)
-        # Plot the data
-        index = row['Time']
+
         dt = pd.Timedelta(seconds=plot_window_s/2)
-        time_range = (index-dt, index+dt)
+        time_range = (row['Time']-dt, row['Time']+dt)
 
         idt = np.where(
             (self.hr['Time'] > time_range[0]) &
             (self.hr['Time'] < time_range[1])
             )[0]
-        # idt_peak = np.where(self.hr['Time'] == index)[0]
+        idt_peak = np.where(self.hr['Time'] == row['Time'])[0][0]
 
         for i, (color, channel) in enumerate(zip(_plot_colors, self.channels)):
             ax[i].plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, channel], c=color)
@@ -267,6 +266,11 @@ class Duration:
         x_data_seconds = (time_array-current_date).total_seconds()
 
         for i, (color, channel) in enumerate(zip(_plot_colors, self.channels)):
+            fit_bounds = (
+                self.hr['Time'][idt_peak]-self.fit_interval_s/2,
+                self.hr['Time'][idt_peak]+self.fit_interval_s/2
+            )
+            ax[i].axvspan(*fit_bounds, color='grey', alpha=0.5)
             if self.detrend:
                 popt = np.nan*np.zeros(5)
                 popt[3] = row[f'y_int_{channel}']
@@ -292,7 +296,9 @@ class Duration:
             )
             ax[i].text(0.01, 1, fit_params, va='top', transform=ax[i].transAxes, color='red')
 
-        ax[0].set(title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation"))
+        ax[0].set(
+            title=row['Time'].strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation")
+            )
         ax[-1].set(xlim=time_range, xlabel='Time')
         s = (
             f'L={round(row["McIlwainL"], 1)}\n'
@@ -307,7 +313,7 @@ class Duration:
 
         plt.tight_layout()
 
-        save_time = index.strftime("%Y%m%d_%H%M%S_%f")
+        save_time = row['Time'].strftime("%Y%m%d_%H%M%S_%f")
         save_name = (f'{save_time}_fu{self.fb_id}_microburst_fit.png')
         save_path = pathlib.Path(self.plot_save_dir, save_name)
         plt.savefig(save_path)
