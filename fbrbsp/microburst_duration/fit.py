@@ -243,7 +243,7 @@ class Duration:
         Make validation plots of each microburst.
         """
         _plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
-        _, ax = plt.subplots(len(self.channels)+1, 1, figsize=(8, 10), sharex=True)
+        _, ax = plt.subplots(len(self.channels), 1, figsize=(8, 10), sharex=True)
         # Plot the data
         index = row['Time']
         dt = pd.Timedelta(seconds=plot_window_s/2)
@@ -274,8 +274,8 @@ class Duration:
             else:
                 popt = np.nan*np.zeros(3)
             popt[0] = row[f'A_{channel}']
-            # if np.isnan(popt[0]):
-            #     continue
+            if np.isnan(popt[0]):  # Plot just the data if the fit failed.
+                continue
             popt[1] = (row[f't0_{channel}'] - current_date).total_seconds()
             popt[2] = row[f'fwhm_{channel}']/2.355 # Convert the Gaussian FWHM to std
 
@@ -285,6 +285,13 @@ class Duration:
             max_counts = np.max(self.hr['Col_counts'][idt, channel])
             ax[i].set_ylim(0, 1.2*max_counts)
 
+            fit_params=(
+                f"FWHM={round(row[f'fwhm_{channel}'], 2)} [s]\n"
+                f"R^2 = {round(row[f'r2_{channel}'], 2)}\n"
+                f"adj_R^2 = {round(row[f'adj_r2_{channel}'], 2)}\n"
+            )
+            ax[i].text(0.01, 1, fit_params, va='top', transform=ax[i].transAxes, color='red')
+
         ax[0].set(title=index.strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation"))
         ax[-1].set(xlim=time_range, xlabel='Time')
         s = (
@@ -292,10 +299,6 @@ class Duration:
             f'MLT={round(row["MLT"], 1)}\n'
             f'(lat,lon)=({round(row["Lat"], 1)}, {round(row["Lon"], 1)})'
         )
-        #     f"FWHM={round(self.microbursts.loc[i, f'fwhm_{self.channel}'], 2)} [s]\n"
-        #     f"R^2 = {round(self.microbursts.loc[i, f'r2_{self.channel}'], 2)}\n"
-        #     f"adj_R^2 = {round(self.microbursts.loc[i, f'adj_r2_{self.channel}'], 2)}\n"
-        #     )
         ax[0].text(0.7, 1, s, va='top', transform=ax[0].transAxes, color='red')
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
         ax[-1].xaxis.set_major_locator(locator)
