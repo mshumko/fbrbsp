@@ -222,9 +222,10 @@ class Duration:
         return
 
     def _create_empty_columns(self):
+        self.fit_param_names = []
         for channel in self.channels:
-            self.fit_param_names = [f'r2_{channel}', f'adj_r2_{channel}', 
-                f'A_{channel}', f't0_{channel}', f'fwhm_{channel}']
+            self.fit_param_names.extend([f'r2_{channel}', f'adj_r2_{channel}', 
+                f'A_{channel}', f't0_{channel}', f'fwhm_{channel}'])
             if self.detrend:
                 self.fit_param_names.extend([f'y_int_{channel}', f'slope_{channel}'])
             self.microbursts[self.fit_param_names] = np.nan
@@ -292,7 +293,11 @@ class Duration:
         #     f"adj_R^2 = {round(self.microbursts.loc[i, f'adj_r2_{self.channel}'], 2)}\n"
         #     )
         # ax.text(0.7, 1, s, va='top', transform=ax.transAxes, color='red')
-        ax[0].set_ylim(0, 1.2*np.max(self.hr['Col_counts'][idt, self.channels]))
+        # Col_counts are indexed via [idt][self.channels] and not [idt, self.channels]
+        # because idt and self.channels are different shapes and numpy cant broadcast
+        # them to the same shape. See https://stackoverflow.com/a/46125367.
+        max_counts = 1.2*np.max(self.hr['Col_counts'][idt][self.channels])
+        ax[0].set_ylim(0, max_counts)
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
         ax[0].xaxis.set_major_locator(locator)
         fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
@@ -312,5 +317,5 @@ if __name__ == "__main__":
     # for ch in range(6):
     #     d = Duration(3, 5, validation_plots=False, channels=ch)
     #     d.loop()
-    d = Duration(3, 5, validation_plots=True, channels=[0])
+    d = Duration(3, 5, validation_plots=True)
     d.loop()
