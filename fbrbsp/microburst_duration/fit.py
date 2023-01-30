@@ -85,7 +85,7 @@ class Duration:
                 self._plot_microburst(self.microbursts.loc[i, :])
 
         self.microbursts.to_csv(self.microburst_path, index=False)
-        print(f'Microburst fitting completed in {(time.time() - start_time)//60} minutes.')
+        print(f'Microburst fitting completed in {(time.time() - start_time)/60} minutes.')
         return
 
     def fit(self, row, channel):
@@ -256,7 +256,8 @@ class Duration:
 
         for i, (color, channel) in enumerate(zip(_plot_colors, self.channels)):
             ax[i].plot(self.hr['Time'][idt], self.hr['Col_counts'][idt, channel], c=color)
-            ax[i].set_ylabel(f'{channel=}\nCounts/{1000*float(self.hr.attrs["CADENCE"])} ms')
+            energy_range = self.hr.attrs['Col_counts']['ENERGY_RANGES'][channel]
+            ax[i].set_ylabel(f'{channel=}\n({energy_range})\nCounts/{1000*float(self.hr.attrs["CADENCE"])} ms')
         # ax.scatter(self.hr['Time'][idt_peak], 
         #     self.hr['Col_counts'][idt_peak, 0], marker='*', s=200, c='r')
 
