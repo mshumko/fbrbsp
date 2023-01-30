@@ -272,6 +272,8 @@ class Duration:
                 self.hr['Time'][idt_peak]+self.fit_interval_s/2
             )
             ax[i].axvspan(*fit_bounds, color='grey', alpha=0.5)
+            ax[i].axvline(row['Time'], color='k', ls=':')
+            
             if self.detrend:
                 popt = np.nan*np.zeros(5)
                 popt[3] = row[f'y_int_{channel}']
@@ -295,7 +297,7 @@ class Duration:
                 f"R^2 = {round(row[f'r2_{channel}'], 2)}\n"
                 f"adj_R^2 = {round(row[f'adj_r2_{channel}'], 2)}\n"
             )
-            ax[i].text(0.01, 1, fit_params, va='top', transform=ax[i].transAxes, color='red')
+            ax[i].text(0.01, 1, fit_params, va='top', transform=ax[i].transAxes, color=color)
 
         ax[0].set(
             title=row['Time'].strftime("%Y-%m-%d %H:%M:%S.%f\nmicroburst fit validation")
