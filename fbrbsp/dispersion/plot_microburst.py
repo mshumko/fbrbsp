@@ -13,13 +13,17 @@ import fbrbsp
 import fbrbsp.load.firebird
 import fbrbsp.duration.fit
 
+
+time = '2015-08-27T12:41:01.663000'
+plot_window_s=1
+# time = '2015-08-27T12:40:37'
+# plot_window_s=2
+
 fb_id = 3
 catalog_version=5
-time = '2015-08-27T12:40:37'
-plot_window_s=2
 fit_interval_s = 0.3
 
-channels = np.arange(6)
+channels = np.arange(5)
 
 if isinstance(time, str):
     time = dateutil.parser.parse(time)
@@ -91,15 +95,19 @@ ax[-2].xaxis.set_major_locator(locator)
 fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
 ax[-2].xaxis.set_major_formatter(fmt)
 
+# Time differences with respect to channel 0
 t0_keys = [f't0_{channel}' for channel in channels]
 t0_0 = dateutil.parser.parse(microburst_info['t0_0'])
-t0_differences = [(t0_0 - dateutil.parser.parse(microburst_info[key])).total_seconds() for key in t0_keys]
+t0_differences_ms = [1E3*(t0_0 - dateutil.parser.parse(microburst_info[key])).total_seconds() for key in t0_keys]
 center_energy = [float(s.split()[0].replace('>', '')) 
-    for s in hr.attrs['Col_counts']['ELEMENT_LABELS']]
-ax[-1].scatter(center_energy, t0_differences)
-max_abs_lim = np.max(np.abs(ax[-1].get_ylim()))
+    for s in np.array(hr.attrs['Col_counts']['ELEMENT_LABELS'])[channels]]
+
+ax[-1].scatter(center_energy, t0_differences_ms, c='k')
+max_abs_lim = 1.1*np.max(np.abs(ax[-1].get_ylim()))
+ax[0].set_title(f'Microburst dispersion\nFU{fb_id} | {microburst_info["Time"]}')
 ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
-ax[-1].axhline()
+ax[-1].axhline(c='k')
+ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[0]-ch[N])')
 
 plt.tight_layout()
 plt.show()
