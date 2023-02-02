@@ -6,6 +6,8 @@ import dateutil.parser
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker
+import matplotlib.dates
 
 import fbrbsp
 import fbrbsp.load.firebird
@@ -35,7 +37,12 @@ idt = np.where((hr['Time'] > time_range[0]) & (hr['Time'] < time_range[1]))[0]
 
 _plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
 _, ax = plt.subplots(len(channels)+1, 1, figsize=(6, 8))
-ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
+# ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
+for ax_i in ax[1:-1]:
+    ax[0].get_shared_x_axes().join(ax[0], ax_i)
+for ax_i in ax[:-2]:
+    ax_i.xaxis.set_visible(False)
+
 
 # Plot HiRes
 for i, (color, channel) in enumerate(zip(_plot_colors, channels)):
@@ -78,10 +85,21 @@ for i, (color, channel) in enumerate(zip(_plot_colors, channels)):
     )
     ax[i].text(0.01, 1, fit_params, va='top', transform=ax[i].transAxes, color=color)
 
+
+locator=matplotlib.ticker.MaxNLocator(nbins=5)
+ax[-2].xaxis.set_major_locator(locator)
+fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
+ax[-2].xaxis.set_major_formatter(fmt)
+
 t0_keys = [f't0_{channel}' for channel in channels]
 t0_0 = dateutil.parser.parse(microburst_info['t0_0'])
-t0_differences = [t0_0 - dateutil.parser.parse(microburst_info[key]) for key in t0_keys]
+t0_differences = [(t0_0 - dateutil.parser.parse(microburst_info[key])).total_seconds() for key in t0_keys]
+center_energy = [float(s.split()[0].replace('>', '')) 
+    for s in hr.attrs['Col_counts']['ELEMENT_LABELS']]
+ax[-1].scatter(center_energy, t0_differences)
+max_abs_lim = np.max(np.abs(ax[-1].get_ylim()))
+ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
+ax[-1].axhline()
 
-ax[-1].scatter(t0_differences)
 plt.tight_layout()
 plt.show()
