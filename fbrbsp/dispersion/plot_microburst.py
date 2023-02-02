@@ -18,6 +18,8 @@ time = '2015-08-27T12:41:01.663000'
 plot_window_s=1
 # time = '2015-08-27T12:40:37'
 # plot_window_s=2
+# time = '2015-02-02T06:12:31.750000'
+# plot_window_s=1
 
 fb_id = 3
 catalog_version=5
@@ -102,11 +104,22 @@ t0_differences_ms = [1E3*(t0_0 - dateutil.parser.parse(microburst_info[key])).to
 center_energy = [float(s.split()[0].replace('>', '')) 
     for s in np.array(hr.attrs['Col_counts']['ELEMENT_LABELS'])[channels]]
 
-ax[-1].scatter(center_energy, t0_differences_ms, c='k')
+xerrs = [xerr for xerr in np.array(hr.attrs['Col_counts']['ENERGY_RANGES'])[channels]]
+xerrs = [xerr.replace('keV', '').replace('>', '').split('-') for xerr in xerrs]
+
+if 5 in channels:  # Integral channel special case
+    xerrs[-1] = [None, None]
+xerrs = np.array(xerrs).astype(float).T - center_energy
+xerrs = np.abs(xerrs)
+
+yerrs = 1000*float(hr.attrs["CADENCE"])
+
+ax[-1].errorbar(center_energy, t0_differences_ms, c='k', marker='.', 
+    yerr=yerrs, xerr=xerrs, capsize=2, ls='None')
 max_abs_lim = 1.1*np.max(np.abs(ax[-1].get_ylim()))
 ax[0].set_title(f'Microburst dispersion\nFU{fb_id} | {microburst_info["Time"]}')
 ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
-ax[-1].axhline(c='k')
+ax[-1].axhline(c='k', ls='--')
 ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[0]-ch[N])')
 
 plt.tight_layout()
