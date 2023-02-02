@@ -14,18 +14,20 @@ import fbrbsp.load.firebird
 import fbrbsp.duration.fit
 
 
-time = '2015-08-27T12:41:01.663000'
-plot_window_s=1
+# time = '2015-08-27T12:41:01.663000'
+# plot_window_s=1
 # time = '2015-08-27T12:40:37'
 # plot_window_s=2
 # time = '2015-02-02T06:12:31.750000'
 # plot_window_s=1
+time = '2015-02-02T06:12:26.310000'
+plot_window_s=1
 
 fb_id = 3
 catalog_version=5
 fit_interval_s = 0.3
 
-channels = np.arange(5)
+channels = np.arange(6)
 
 if isinstance(time, str):
     time = dateutil.parser.parse(time)
@@ -114,6 +116,12 @@ xerrs = np.abs(xerrs)
 
 yerrs = 1000*float(hr.attrs["CADENCE"])
 
+s = (
+        f'L={round(microburst_info["McIlwainL"], 1)}\n'
+        f'MLT={round(microburst_info["MLT"], 1)}\n'
+        f'(lat,lon)=({round(microburst_info["Lat"], 1)}, {round(microburst_info["Lon"], 1)})'
+    )
+ax[0].text(0.7, 1, s, va='top', transform=ax[0].transAxes, color='red')
 ax[-1].errorbar(center_energy, t0_differences_ms, c='k', marker='.', 
     yerr=yerrs, xerr=xerrs, capsize=2, ls='None')
 max_abs_lim = 1.1*np.max(np.abs(ax[-1].get_ylim()))
