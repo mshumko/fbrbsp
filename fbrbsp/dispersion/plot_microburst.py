@@ -33,6 +33,7 @@ catalog_version=5
 fit_interval_s = 0.3
 
 
+#TODO: Turn into a class (or a set of functions.)
 if isinstance(time, str):
     time = dateutil.parser.parse(time)
 microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
@@ -100,7 +101,7 @@ for i, (color, channel) in enumerate(zip(_plot_colors, channels)):
 
 locator=matplotlib.ticker.MaxNLocator(nbins=5)
 ax[-2].xaxis.set_major_locator(locator)
-fmt = matplotlib.dates.DateFormatter('%H:%M:%S')
+fmt = matplotlib.dates.DateFormatter('%H:%M:%S')  # Replace time ticks ms?
 ax[-2].xaxis.set_major_formatter(fmt)
 
 # Time differences with respect to channel 0
