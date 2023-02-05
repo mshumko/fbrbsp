@@ -139,5 +139,8 @@ ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[0]-ch[N])')
 #     ax_i.set_ylim(0.1, None)
 #     ax_i.set_yscale('log')
 
+# print(f'{np.array(hr.attrs["Col_counts"]["ENERGY_RANGES"])[channels]=}')
+# print(f'{t0_differences_ms=}')
+
 plt.tight_layout()
 plt.show()
