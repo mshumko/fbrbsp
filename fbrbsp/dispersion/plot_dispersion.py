@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.dates
+from matplotlib.ticker import FuncFormatter
 
 import fbrbsp
 import fbrbsp.load.firebird
@@ -101,7 +102,8 @@ class Plot_Dispersion:
         self._plot_fit()
         self._annotate_location()
         self._plot_dispersion()
-        self.ax[0].set_title(f'Microburst dispersion\nFU{self.fb_id} | {self.microburst_info["Time"]}')
+        self.ax[0].set_title(f'FU{self.fb_id} Microburst Dispersion\n{self.microburst_info["Time"]}')
+        self._format_times(self.ax[-2])
         return
     
     def _plot_hr(self):
@@ -124,7 +126,8 @@ class Plot_Dispersion:
         Plot the Gaussian fit + linear trend
         """
         # Plot Fit
-        time_array = self.hr['Time'][self.plot_idt]
+        data_time_array = self.hr['Time'][self.plot_idt]
+        time_array = pd.date_range(start=data_time_array[0], end=data_time_array[-1], periods=1000)
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
 
@@ -169,7 +172,7 @@ class Plot_Dispersion:
         # Time differences with respect to channel 0
         t0_keys = [f't0_{channel}' for channel in channels]
         t0 = [dateutil.parser.parse(self.microburst_info[t0_key]) for t0_key in t0_keys]
-        self.t0_diff_ms = [1E3*(t0[0] - t0_i).total_seconds() for t0_i in t0]
+        self.t0_diff_ms = [1E3*(t0_i - t0[0]).total_seconds() for t0_i in t0]
 
         self.xerrs = [xerr for xerr in self.energy_range]
         self.xerrs = [xerr.replace('keV', '').replace('>', '').split('-') for xerr in self.xerrs]
@@ -188,7 +191,7 @@ class Plot_Dispersion:
         max_abs_lim = 1.1*np.max(np.abs(self.ax[-1].get_ylim()))
         self.ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
         self.ax[-1].axhline(c='k', ls='--')
-        self.ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[0]-ch[N])')
+        self.ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
         return
     
     def get_energy_channels(self):
@@ -198,6 +201,23 @@ class Plot_Dispersion:
         energy_range = np.array(self.hr.attrs['Col_counts']['ENERGY_RANGES'])
         energy_range = energy_range[[self.channels]]
         return center_energy, energy_range
+    
+    def _format_times(self, ax):
+        locator=matplotlib.ticker.MaxNLocator(nbins=5)
+        ax.xaxis.set_major_locator(locator)
+        # fmt = matplotlib.dates.DateFormatter('%T.%f')
+        fmt = matplotlib.dates.DateFormatter('%T')
+        ax.xaxis.set_major_formatter(fmt)
+        # ax.xaxis.set_major_formatter(FuncFormatter(self.format_fn))
+        # ax.xaxis.set_label_coords(-0.1, -0.02)
+        # ax.set_xlabel('Seconds after X')
+        return
+
+    def format_fn(self, tick_val, _):
+        tick_time = matplotlib.dates.num2date(tick_val).replace(tzinfo=None)
+        t0 = tick_time.replace(second=0, microsecond=0)
+        return (tick_time-t0).total_seconds()
+        # return tick_time.strftime('%T.%f')[:-5]
 
 
 if __name__ == '__main__':
@@ -222,8 +242,3 @@ if __name__ == '__main__':
     d.plot(time)
     plt.tight_layout()
     plt.show()
-
-# locator=matplotlib.ticker.MaxNLocator(nbins=5)
-# ax[-2].xaxis.set_major_locator(locator)
-# fmt = matplotlib.dates.DateFormatter('%H:%M:%S')  # Replace time ticks ms?
-# ax[-2].xaxis.set_major_formatter(fmt)
