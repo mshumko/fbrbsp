@@ -250,17 +250,19 @@ class Plot_Dispersion:
 if __name__ == '__main__':
     plot_window_s=1
 
+    ## Best positive dispersion event so far
+    time = '2015-08-27T12:40:37'
+    channels = np.arange(4)
+    
+    ## A decent positive dispersion event
     # time = '2015-08-27T12:41:01.663000'
     # channels = np.arange(5)
-
-    # time = '2015-08-27T12:40:37'
-    # channels = np.arange(4)
 
     # time = '2015-02-02T06:12:31.750000'
     # channels = np.arange(6)
 
-    time = '2015-02-02T06:12:26.310000'
-    channels = np.arange(6)
+    # time = '2015-02-02T06:12:26.310000'
+    # channels = np.arange(6)
 
     fb_id = 3
     catalog_version=5
