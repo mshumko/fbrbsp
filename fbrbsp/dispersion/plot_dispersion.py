@@ -50,7 +50,7 @@ class Plot_Dispersion:
         self.fit_interval_s = pd.Timedelta(seconds=fit_interval_s)
         self.plot_window_s = pd.Timedelta(seconds=plot_window_s)
         self.current_date = date.min
-        self._plot_colors = np.array(['k', 'r', 'g', 'b', 'c', 'purple'])
+        self._plot_colors = np.array(['k', 'k', 'k', 'k', 'k', 'k'])
 
         catalog_name = f'FU{self.fb_id}_microburst_catalog_{str(self.catalog_version).zfill(2)}.csv'
         catalog_path = fbrbsp.config['here'].parent / 'data' / catalog_name
@@ -110,7 +110,8 @@ class Plot_Dispersion:
         # I want to adjust the hspace for the HiRes line subplots and the dispersion 
         # subplot separately so I created multiple nested gridspecs.
         # See https://stackoverflow.com/a/31485288 for inspiration
-        outer_gridspec = gridspec.GridSpec(2, 1, height_ratios=[len(self.channels), 1]) 
+        outer_gridspec = gridspec.GridSpec(2, 1, height_ratios=[len(self.channels), 1], 
+                                           top=0.95, left=0.152, right=0.958, bottom=0.055, hspace=0.15) 
         inner_gs1 = gridspec.GridSpecFromSubplotSpec(len(self.channels), 1, subplot_spec=outer_gridspec[0], hspace=0.05)
         inner_gs2 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gridspec[1])
 
@@ -139,7 +140,8 @@ class Plot_Dispersion:
                 self.hr['Time'][self.plot_idt], 
                 self.hr['Col_counts'][self.plot_idt, channel], c=color, where='mid'
                 )
-            ax_i.set_ylabel(f'{channel=}\n({self.energy_range[i]})\nCounts/{self.cadence_ms} ms')
+            _energy_range = self.energy_range[i].replace(' ', '')
+            ax_i.set_ylabel(f'{channel=}\n({_energy_range})\n[counts/{self.cadence_ms} ms]')
             max_counts = np.max(self.hr['Col_counts'][self.plot_idt, channel])
             ax_i.set_ylim(0, 1.2*max_counts)
         return
@@ -190,7 +192,7 @@ class Plot_Dispersion:
             f'MLT={round(self.microburst_info["MLT"], 1)}\n'
             f'(lat,lon)=({lat_str},{lon_str})'
             )
-        self.ax[0].text(0.67, 1, s, va='top', transform=self.ax[0].transAxes, color='red')
+        self.ax[0].text(0.67, 1, s, va='top', transform=self.ax[0].transAxes, color='k')
         return
     
     def _get_dispersion(self):
@@ -244,11 +246,11 @@ class Plot_Dispersion:
 if __name__ == '__main__':
     plot_window_s=1
 
-    # time = '2015-08-27T12:41:01.663000'
-    # channels = np.arange(5)
+    time = '2015-08-27T12:41:01.663000'
+    channels = np.arange(5)
 
-    time = '2015-08-27T12:40:37'
-    channels = np.arange(4)
+    # time = '2015-08-27T12:40:37'
+    # channels = np.arange(4)
 
     # time = '2015-02-02T06:12:31.750000'
 
