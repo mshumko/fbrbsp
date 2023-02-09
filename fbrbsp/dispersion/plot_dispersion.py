@@ -2,6 +2,8 @@
 Plot a dispersed microburst given a time and a reference catalog.
 """
 import dateutil.parser
+from datetime import datetime, date
+from typing import Union
 
 import pandas as pd
 import numpy as np
@@ -33,28 +35,83 @@ catalog_version=5
 fit_interval_s = 0.3
 
 
-#TODO: Turn into a class (or a set of functions.)
-if isinstance(time, str):
-    time = dateutil.parser.parse(time)
-microburst_name = f'FU{fb_id}_microburst_catalog_{str(catalog_version).zfill(2)}.csv'
-microburst_path = fbrbsp.config['here'].parent / 'data' / microburst_name
-df = pd.read_csv(microburst_path)
-df['Time'] = pd.to_datetime(df['Time'])
-idt = np.argmin(np.abs(df['Time']-time))
-microburst_info = df.loc[idt, :]
+class Plot_Dispersion:
+    def __init__(self, fb_id:int, channels:list=np.arange(6), catalog_version:int=5, fit_interval_s:float=0.3):
+        """
+        Plot the microburst HiRes data and dispersion.
 
-hr = fbrbsp.load.firebird.Hires(fb_id, time).load()
-dt = pd.Timedelta(seconds=plot_window_s/2)
-time_range = (microburst_info['Time']-dt, microburst_info['Time']+dt)
-idt = np.where((hr['Time'] > time_range[0]) & (hr['Time'] < time_range[1]))[0]
+        Parameters
+        ----------
+        fb_id: int
+            The FIREBIRD spacecraft id. Can be 3 or 4
+        channels: list or np.array
+            The energy channels to plot.
+        catalog_version: int 
+            The microburst catalog version located in fbrbsp/data/
+        fit_interval_s: float
+            The fit interval used to fit microbursts in fit.py
 
-_plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
-_, ax = plt.subplots(len(channels)+1, 1, figsize=(6, 8))
-# ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
-for ax_i in ax[1:-1]:
-    ax[0].get_shared_x_axes().join(ax[0], ax_i)
-for ax_i in ax[:-2]:
-    ax_i.xaxis.set_visible(False)
+        Methods
+        -------
+        plot(time)
+            Plot the HiRes data and peak dispersion.
+        """
+        self.fb_id = fb_id
+        self.channels = channels
+        self.catalog_version = catalog_version
+        self.fit_interval_s = fit_interval_s
+        self.current_date = date.min
+
+        catalog_name = f'FU{self.fb_id}_microburst_catalog_{str(self.catalog_version).zfill(2)}.csv'
+        catalog_path = fbrbsp.config['here'].parent / 'data' / catalog_name
+        self.catalog = pd.read_csv(catalog_path)
+        self.catalog['Time'] = pd.to_datetime(self.catalog['Time'])
+        return
+    
+    def plot(self, time:Union[str, datetime, pd.Timestamp]):
+        """
+        Plot the microburst dispersion.
+
+        Parameters
+        ----------
+        time: str, datetime, or pd.Timestamp
+            The time to reference and plot the microburst from the catalog. 
+        """
+        self._time = time
+        if isinstance(self._time, str):
+            self._time = dateutil.parser.parse(self._time)
+        idt = np.argmin(np.abs(self.catalog['Time']-time))
+        microburst_info = self.catalog.loc[idt, :]
+        dt = np.abs((microburst_info['Time']-time).total_seconds())
+        if dt > 1:
+            raise ValueError(f'The desired microburst plot time is {dt} '
+                             f'seconds away from the closest microburst '
+                             f'observed at {microburst_info["Time"]}')
+        
+        if self.current_date != self._time.date():
+            self.hr = fbrbsp.load.firebird.Hires(self.fb_id, self._time).load()
+            self.current_date = self._time.date()
+
+        plot_dt = pd.Timedelta(seconds=plot_window_s/2)
+        time_range = (microburst_info['Time']-plot_dt, microburst_info['Time']+plot_dt)
+        idt = np.where((self.hr['Time'] > time_range[0]) & (self.hr['Time'] < time_range[1]))[0]
+
+        _plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
+        self.fig, self.ax = plt.subplots(len(self.channels)+1, 1, figsize=(6, 8))
+        # ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
+        for ax_i in self.ax[1:-1]:
+            self.ax[0].get_shared_x_axes().join(self.ax[0], ax_i)
+        for ax_i in self.ax[:-2]:
+            ax_i.xaxis.set_visible(False)
+        return
+    
+    def _plot_hr(self):
+
+
+        return
+    
+
+if __name__ == '__main__':
 
 
 # Plot HiRes
