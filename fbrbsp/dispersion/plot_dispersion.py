@@ -4,6 +4,7 @@ Plot a dispersed microburst given a time and a reference catalog.
 import dateutil.parser
 from datetime import datetime, date
 from typing import Union
+import string
 
 import pandas as pd
 import numpy as np
@@ -49,7 +50,7 @@ class Plot_Dispersion:
         self.fit_interval_s = pd.Timedelta(seconds=fit_interval_s)
         self.plot_window_s = pd.Timedelta(seconds=plot_window_s)
         self.current_date = date.min
-        self._plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
+        self._plot_colors = np.array(['k', 'r', 'g', 'b', 'c', 'purple'])
 
         catalog_name = f'FU{self.fb_id}_microburst_catalog_{str(self.catalog_version).zfill(2)}.csv'
         catalog_path = fbrbsp.config['here'].parent / 'data' / catalog_name
@@ -123,6 +124,9 @@ class Plot_Dispersion:
             if i < len(self.channels)-1:
                 self.ax[i].get_xaxis().set_visible(False)
         self.ax[-1] = self.fig.add_subplot(inner_gs2[0, 0])
+        for i, (ax_i, color) in enumerate(zip(self.ax, self._plot_colors[self.channels][::-1])):
+            ax_i.text(0, 0.99, f'({string.ascii_uppercase[i]})', va='top', 
+                      transform=ax_i.transAxes, weight='bold', color=color)
         return
     
     def _plot_hr(self):
@@ -175,16 +179,18 @@ class Plot_Dispersion:
                 f"R^2 = {round(self.microburst_info[f'r2_{channel}'], 2)}\n"
                 f"adj_R^2 = {round(self.microburst_info[f'adj_r2_{channel}'], 2)}\n"
             )
-            ax_i.text(0.01, 1, fit_params, va='top', transform=ax_i.transAxes, color=color)
+            ax_i.text(0.01, 0.87, fit_params, va='top', transform=ax_i.transAxes, color=color)
         return
     
     def _annotate_location(self):
+        lat_str = f'${{{round(self.microburst_info["Lat"])}}}^{{\circ}}$'
+        lon_str = f'${round(self.microburst_info["Lon"])}^{{\circ}}$'
         s = (
             f'L={round(self.microburst_info["McIlwainL"], 1)}\n'
             f'MLT={round(self.microburst_info["MLT"], 1)}\n'
-            f'(lat,lon)=({round(self.microburst_info["Lat"], 1)}, {round(self.microburst_info["Lon"], 1)})'
+            f'(lat,lon)=({lat_str},{lon_str})'
             )
-        self.ax[0].text(0.7, 1, s, va='top', transform=self.ax[0].transAxes, color='red')
+        self.ax[0].text(0.67, 1, s, va='top', transform=self.ax[0].transAxes, color='red')
         return
     
     def _get_dispersion(self):
