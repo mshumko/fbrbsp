@@ -120,17 +120,9 @@ class Plot_Dispersion:
                 self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0])
             else:
                 self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0], sharex=self.ax[0])
-            # self.ax[i].get_xaxis().set_ticks([])
             if i < len(self.channels)-1:
                 self.ax[i].get_xaxis().set_visible(False)
         self.ax[-1] = self.fig.add_subplot(inner_gs2[0, 0])
-
-        # self.fig, self.ax = plt.subplots(len(self.channels)+1, 1, figsize=(6, 8))
-        # # ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
-        # for ax_i in self.ax[1:-1]:
-        #     self.ax[0].get_shared_x_axes().join(self.ax[0], ax_i)
-        # for ax_i in self.ax[:-2]:
-        #     ax_i.xaxis.set_visible(False)
         return
     
     def _plot_hr(self):
@@ -240,8 +232,6 @@ class Plot_Dispersion:
 
     def format_fn(self, tick_val, _):
         tick_time = matplotlib.dates.num2date(tick_val).replace(tzinfo=None)
-        # t0 = tick_time.replace(second=0, microsecond=0)
-        # return (tick_time-t0).total_seconds()
         return tick_time.strftime('%T.%f')[:-5]
 
 
