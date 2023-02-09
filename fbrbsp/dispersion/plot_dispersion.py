@@ -22,7 +22,7 @@ import fbrbsp.duration.fit
 class Plot_Dispersion:
     def __init__(self, fb_id:int, channels:list=np.arange(6), 
                  catalog_version:int=5, fit_interval_s:float=0.3, 
-                 plot_window_s:float=1):
+                 plot_window_s:float=1, full_ylabels=True):
         """
         Plot the microburst HiRes data and dispersion.
 
@@ -51,6 +51,7 @@ class Plot_Dispersion:
         self.plot_window_s = pd.Timedelta(seconds=plot_window_s)
         self.current_date = date.min
         self._plot_colors = np.array(['k', 'k', 'k', 'k', 'k', 'k'])
+        self.full_ylabels = full_ylabels
 
         catalog_name = f'FU{self.fb_id}_microburst_catalog_{str(self.catalog_version).zfill(2)}.csv'
         catalog_path = fbrbsp.config['here'].parent / 'data' / catalog_name
@@ -111,7 +112,7 @@ class Plot_Dispersion:
         # subplot separately so I created multiple nested gridspecs.
         # See https://stackoverflow.com/a/31485288 for inspiration
         outer_gridspec = gridspec.GridSpec(2, 1, height_ratios=[len(self.channels), 1], 
-                                           top=0.94, left=0.152, right=0.958, bottom=0.055, hspace=0.15) 
+                                           top=0.94, left=0.16, right=0.958, bottom=0.055, hspace=0.15) 
         inner_gs1 = gridspec.GridSpecFromSubplotSpec(len(self.channels), 1, subplot_spec=outer_gridspec[0], hspace=0.05)
         inner_gs2 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gridspec[1])
 
@@ -141,7 +142,10 @@ class Plot_Dispersion:
                 self.hr['Col_counts'][self.plot_idt, channel], c=color, where='mid'
                 )
             _energy_range = self.energy_range[i].replace(' ', '')
-            ax_i.set_ylabel(f'{channel=}\n({_energy_range})\n[counts/{self.cadence_ms} ms]')
+            if self.full_ylabels:
+                ax_i.set_ylabel(f'{channel=}\n({_energy_range})\n[counts/{self.cadence_ms} ms]')
+            else:
+                ax_i.set_ylabel(f'{channel=}')
             max_counts = np.max(self.hr['Col_counts'][self.plot_idt, channel])
             ax_i.set_ylim(0, 1.2*max_counts)
         return
@@ -249,14 +253,14 @@ if __name__ == '__main__':
     # time = '2015-08-27T12:41:01.663000'
     # channels = np.arange(5)
 
-    time = '2015-08-27T12:40:37'
-    channels = np.arange(4)
+    # time = '2015-08-27T12:40:37'
+    # channels = np.arange(4)
 
     # time = '2015-02-02T06:12:31.750000'
     # channels = np.arange(6)
 
-    # time = '2015-02-02T06:12:26.310000'
-    # channels = np.arange(6)
+    time = '2015-02-02T06:12:26.310000'
+    channels = np.arange(6)
 
     fb_id = 3
     catalog_version=5
@@ -265,5 +269,6 @@ if __name__ == '__main__':
     d = Plot_Dispersion(fb_id, channels=channels, catalog_version=catalog_version, 
                     fit_interval_s=fit_interval_s, plot_window_s=plot_window_s)
     d.plot(time)
+    print(f'{d.t0_diff_ms=}')
     plt.tight_layout()
     plt.show()
