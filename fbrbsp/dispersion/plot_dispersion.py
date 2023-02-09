@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.dates
 from matplotlib.ticker import FuncFormatter
+import matplotlib.gridspec as gridspec
 
 import fbrbsp
 import fbrbsp.load.firebird
@@ -91,13 +92,7 @@ class Plot_Dispersion:
             )
         self.plot_idt = np.where((self.hr['Time'] > time_range[0]) & (self.hr['Time'] < time_range[1]))[0]
 
-        self.fig, self.ax = plt.subplots(len(self.channels)+1, 1, figsize=(6, 8))
-        # ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
-        for ax_i in self.ax[1:-1]:
-            self.ax[0].get_shared_x_axes().join(self.ax[0], ax_i)
-        for ax_i in self.ax[:-2]:
-            ax_i.xaxis.set_visible(False)
-        
+        self._create_subplots()
         self._plot_hr()
         self._plot_fit()
         self._annotate_location()
@@ -105,6 +100,37 @@ class Plot_Dispersion:
         self.ax[0].set_title(f'FU{self.fb_id} Microburst Dispersion\n{self.microburst_info["Time"]}')
         self._format_times(self.ax[-2])
         self.ax[-2].set_xlabel('Time [HH:MM:SS]')
+        return
+    
+    def _create_subplots(self):
+        """"
+        Create empty subplots for the HiRes line plots and dispersion scatter plot.
+        """
+        # I want to adjust the hspace for the HiRes line subplots and the dispersion 
+        # subplot separately so I created multiple nested gridspecs.
+        # See https://stackoverflow.com/a/31485288 for inspiration
+        outer_gridspec = gridspec.GridSpec(2, 1, height_ratios=[len(self.channels), 1]) 
+        inner_gs1 = gridspec.GridSpecFromSubplotSpec(len(self.channels), 1, subplot_spec=outer_gridspec[0], hspace=0.05)
+        inner_gs2 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gridspec[1])
+
+        self.fig = plt.figure(figsize=(6, 8))
+        self.ax = [None]*(len(self.channels)+1)
+        for i in range(len(self.channels)):
+            if i == 0:
+                self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0])
+            else:
+                self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0], sharex=self.ax[0])
+            # self.ax[i].get_xaxis().set_ticks([])
+            if i < len(self.channels)-1:
+                self.ax[i].get_xaxis().set_visible(False)
+        self.ax[-1] = self.fig.add_subplot(inner_gs2[0, 0])
+
+        # self.fig, self.ax = plt.subplots(len(self.channels)+1, 1, figsize=(6, 8))
+        # # ax[-1].get_shared_x_axes().remove(ax[-1])  # TODO: Find another solution to unshare x-axis of the last subplot.
+        # for ax_i in self.ax[1:-1]:
+        #     self.ax[0].get_shared_x_axes().join(self.ax[0], ax_i)
+        # for ax_i in self.ax[:-2]:
+        #     ax_i.xaxis.set_visible(False)
         return
     
     def _plot_hr(self):
