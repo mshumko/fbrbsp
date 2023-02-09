@@ -272,5 +272,6 @@ if __name__ == '__main__':
                     fit_interval_s=fit_interval_s, plot_window_s=plot_window_s)
     d.plot(time)
     print(f'{d.t0_diff_ms=}')
+    print(f'{d.center_energy=}')
     plt.tight_layout()
     plt.show()
