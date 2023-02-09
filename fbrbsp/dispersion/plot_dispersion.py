@@ -101,9 +101,10 @@ class Plot_Dispersion:
         self._plot_hr()
         self._plot_fit()
         self._annotate_location()
-        self._plot_dispersion()
+        self._plot_dispersion(self.ax[-1])
         self.ax[0].set_title(f'FU{self.fb_id} Microburst Dispersion\n{self.microburst_info["Time"]}')
         self._format_times(self.ax[-2])
+        self.ax[-2].set_xlabel('Time [HH:MM:SS]')
         return
     
     def _plot_hr(self):
@@ -111,14 +112,14 @@ class Plot_Dispersion:
         Plot the Hires channels in each subplot.
         """
         # Plot HiRes
-        for i, (color, channel) in enumerate(zip(self._plot_colors, self.channels)):
-            self.ax[i].step(
+        for i, (ax_i, color, channel) in enumerate(zip(self.ax[:-1][::-1], self._plot_colors, self.channels)):
+            ax_i.step(
                 self.hr['Time'][self.plot_idt], 
-                self.hr['Col_counts'][self.plot_idt, channel], c=color, where='post'
+                self.hr['Col_counts'][self.plot_idt, channel], c=color, where='mid'
                 )
-            self.ax[i].set_ylabel(f'{channel=}\n({self.energy_range[i]})\nCounts/{self.cadence_ms} ms')
+            ax_i.set_ylabel(f'{channel=}\n({self.energy_range[i]})\nCounts/{self.cadence_ms} ms')
             max_counts = np.max(self.hr['Col_counts'][self.plot_idt, channel])
-            self.ax[i].set_ylim(0, 1.2*max_counts)
+            ax_i.set_ylim(0, 1.2*max_counts)
         return
     
     def _plot_fit(self):
@@ -131,13 +132,13 @@ class Plot_Dispersion:
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
 
-        for i, (color, channel) in enumerate(zip(self._plot_colors, self.channels)):
+        for i, (ax_i, color, channel) in enumerate(zip(self.ax[:-1][::-1], self._plot_colors, self.channels)):
             fit_bounds = (
                 self.microburst_info['Time']-self.fit_interval_s/2,
                 self.microburst_info['Time']+self.fit_interval_s/2
             )
-            self.ax[i].axvspan(*fit_bounds, color='grey', alpha=0.5)
-            self.ax[i].axvline(self.microburst_info['Time'], color='k', ls=':')
+            ax_i.axvspan(*fit_bounds, color='grey', alpha=0.5)
+            ax_i.axvline(self.microburst_info['Time'], color='k', ls=':')
             
             popt = np.nan*np.zeros(5)
             popt[1] = (dateutil.parser.parse(self.microburst_info[f't0_{channel}']) - current_date).total_seconds()
@@ -149,14 +150,14 @@ class Plot_Dispersion:
                 continue
 
             gaus_y = fbrbsp.duration.fit.Duration.gaus_lin_function(x_data_seconds, *popt)
-            self.ax[i].plot(time_array, gaus_y, c=color, ls='--')
+            ax_i.plot(time_array, gaus_y, c=color, ls='--')
 
             fit_params=(
                 f"FWHM={round(self.microburst_info[f'fwhm_{channel}'], 2)} [s]\n"
                 f"R^2 = {round(self.microburst_info[f'r2_{channel}'], 2)}\n"
                 f"adj_R^2 = {round(self.microburst_info[f'adj_r2_{channel}'], 2)}\n"
             )
-            self.ax[i].text(0.01, 1, fit_params, va='top', transform=self.ax[i].transAxes, color=color)
+            ax_i.text(0.01, 1, fit_params, va='top', transform=ax_i.transAxes, color=color)
         return
     
     def _annotate_location(self):
@@ -184,14 +185,17 @@ class Plot_Dispersion:
         self.yerrs = self.cadence_ms
         return
     
-    def _plot_dispersion(self):
+    def _plot_dispersion(self, ax):
         self._get_dispersion()
-        self.ax[-1].errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
+        ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
             yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
-        max_abs_lim = 1.1*np.max(np.abs(self.ax[-1].get_ylim()))
-        self.ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
-        self.ax[-1].axhline(c='k', ls='--')
-        self.ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
+        max_abs_lim = 1.1*np.max(np.abs(ax.get_ylim()))
+        ax.set_ylim(-max_abs_lim, max_abs_lim)
+        ax.axhline(c='k', ls='--')
+        ax.set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
+
+        locator=matplotlib.ticker.FixedLocator(np.linspace(-max_abs_lim, max_abs_lim, num=5))
+        ax.yaxis.set_major_locator(locator)
         return
     
     def get_energy_channels(self):
@@ -205,19 +209,14 @@ class Plot_Dispersion:
     def _format_times(self, ax):
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
         ax.xaxis.set_major_locator(locator)
-        # fmt = matplotlib.dates.DateFormatter('%T.%f')
-        fmt = matplotlib.dates.DateFormatter('%T')
-        ax.xaxis.set_major_formatter(fmt)
-        # ax.xaxis.set_major_formatter(FuncFormatter(self.format_fn))
-        # ax.xaxis.set_label_coords(-0.1, -0.02)
-        # ax.set_xlabel('Seconds after X')
+        ax.xaxis.set_major_formatter(FuncFormatter(self.format_fn))
         return
 
     def format_fn(self, tick_val, _):
         tick_time = matplotlib.dates.num2date(tick_val).replace(tzinfo=None)
-        t0 = tick_time.replace(second=0, microsecond=0)
-        return (tick_time-t0).total_seconds()
-        # return tick_time.strftime('%T.%f')[:-5]
+        # t0 = tick_time.replace(second=0, microsecond=0)
+        # return (tick_time-t0).total_seconds()
+        return tick_time.strftime('%T.%f')[:-5]
 
 
 if __name__ == '__main__':
