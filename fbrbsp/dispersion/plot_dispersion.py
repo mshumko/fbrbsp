@@ -111,7 +111,7 @@ class Plot_Dispersion:
         # subplot separately so I created multiple nested gridspecs.
         # See https://stackoverflow.com/a/31485288 for inspiration
         outer_gridspec = gridspec.GridSpec(2, 1, height_ratios=[len(self.channels), 1], 
-                                           top=0.95, left=0.152, right=0.958, bottom=0.055, hspace=0.15) 
+                                           top=0.94, left=0.152, right=0.958, bottom=0.055, hspace=0.15) 
         inner_gs1 = gridspec.GridSpecFromSubplotSpec(len(self.channels), 1, subplot_spec=outer_gridspec[0], hspace=0.05)
         inner_gs2 = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=outer_gridspec[1])
 
@@ -253,8 +253,10 @@ if __name__ == '__main__':
     channels = np.arange(4)
 
     # time = '2015-02-02T06:12:31.750000'
+    # channels = np.arange(6)
 
     # time = '2015-02-02T06:12:26.310000'
+    # channels = np.arange(6)
 
     fb_id = 3
     catalog_version=5
