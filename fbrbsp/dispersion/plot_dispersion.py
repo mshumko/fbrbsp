@@ -17,7 +17,9 @@ import fbrbsp.duration.fit
 
 
 class Plot_Dispersion:
-    def __init__(self, fb_id:int, channels:list=np.arange(6), catalog_version:int=5, fit_interval_s:float=0.3):
+    def __init__(self, fb_id:int, channels:list=np.arange(6), 
+                 catalog_version:int=5, fit_interval_s:float=0.3, 
+                 plot_window_s:float=1):
         """
         Plot the microburst HiRes data and dispersion.
 
@@ -31,6 +33,8 @@ class Plot_Dispersion:
             The microburst catalog version located in fbrbsp/data/
         fit_interval_s: float
             The fit interval used to fit microbursts in fit.py
+        plot_window_s: float
+            The plot window to use.
 
         Methods
         -------
@@ -40,7 +44,8 @@ class Plot_Dispersion:
         self.fb_id = fb_id
         self.channels = channels
         self.catalog_version = catalog_version
-        self.fit_interval_s = fit_interval_s
+        self.fit_interval_s = pd.Timedelta(seconds=fit_interval_s)
+        self.plot_window_s = pd.Timedelta(seconds=plot_window_s)
         self.current_date = date.min
         self._plot_colors = ['k', 'r', 'g', 'b', 'c', 'purple']
 
@@ -65,9 +70,9 @@ class Plot_Dispersion:
         self.annotate_fit = annotate_fit
         if isinstance(self._time, str):
             self._time = dateutil.parser.parse(self._time)
-        idt = np.argmin(np.abs(self.catalog['Time']-time))
+        idt = np.argmin(np.abs(self.catalog['Time']-self._time))
         self.microburst_info = self.catalog.loc[idt, :]
-        dt = np.abs((self.microburst_info['Time']-time).total_seconds())
+        dt = np.abs((self.microburst_info['Time']-self._time).total_seconds())
         if dt > 1:
             raise ValueError(f'The desired microburst plot time is {dt} '
                              f'seconds away from the closest microburst '
@@ -79,8 +84,10 @@ class Plot_Dispersion:
             self.center_energy, self.energy_range = self.get_energy_channels()
             self.current_date = self._time.date()
 
-        plot_dt = pd.Timedelta(seconds=plot_window_s/2)
-        time_range = (self.microburst_info['Time']-plot_dt, self.microburst_info['Time']+plot_dt)
+        time_range = (
+            self.microburst_info['Time']-self.plot_window_s/2, 
+            self.microburst_info['Time']+self.plot_window_s/2
+            )
         self.plot_idt = np.where((self.hr['Time'] > time_range[0]) & (self.hr['Time'] < time_range[1]))[0]
 
         self.fig, self.ax = plt.subplots(len(self.channels)+1, 1, figsize=(6, 8))
@@ -120,11 +127,11 @@ class Plot_Dispersion:
         time_array = self.hr['Time'][self.plot_idt]
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
-        fit_interval_s = pd.Timedelta(seconds=fit_interval_s)
+
         for i, (color, channel) in enumerate(zip(self._plot_colors, self.channels)):
             fit_bounds = (
-                self.microburst_info['Time']-fit_interval_s/2,
-                self.microburst_info['Time']+fit_interval_s/2
+                self.microburst_info['Time']-self.fit_interval_s/2,
+                self.microburst_info['Time']+self.fit_interval_s/2
             )
             self.ax[i].axvspan(*fit_bounds, color='grey', alpha=0.5)
             self.ax[i].axvline(self.microburst_info['Time'], color='k', ls=':')
@@ -167,13 +174,15 @@ class Plot_Dispersion:
         self.xerrs = [xerr for xerr in self.energy_range]
         self.xerrs = [xerr.replace('keV', '').replace('>', '').split('-') for xerr in self.xerrs]
 
-        if 5 in channels:  # Integral channel special case
+        if 5 in self.channels:  # Integral channel special case
             self.xerrs[-1] = [None, None]
         self.xerrs = np.array(self.xerrs).astype(float).T - self.center_energy
         self.xerrs = np.abs(self.xerrs)
+        self.yerrs = self.cadence_ms
         return
     
     def _plot_dispersion(self):
+        self._get_dispersion()
         self.ax[-1].errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
             yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
         max_abs_lim = 1.1*np.max(np.abs(self.ax[-1].get_ylim()))
@@ -183,34 +192,34 @@ class Plot_Dispersion:
         return
     
     def get_energy_channels(self):
-        center_energy = [float(s.split()[0].replace('>', '')) 
-                              for s in np.array(self.hr.attrs['Col_counts']['ELEMENT_LABELS'])[channels]]
-        energy_range = self.hr.attrs['Col_counts']['ENERGY_RANGES']
+        center_energy = np.array([float(s.split()[0].replace('>', '')) 
+                              for s in np.array(self.hr.attrs['Col_counts']['ELEMENT_LABELS'])])
+        center_energy = center_energy[self.channels]
+        energy_range = np.array(self.hr.attrs['Col_counts']['ENERGY_RANGES'])
+        energy_range = energy_range[[self.channels]]
         return center_energy, energy_range
 
 
 if __name__ == '__main__':
-    time = '2015-08-27T12:41:01.663000'
     plot_window_s=1
-    channels = np.arange(5)
 
-    # time = '2015-08-27T12:40:37'
-    # plot_window_s=2
-    # channels = np.arange(4)
+    # time = '2015-08-27T12:41:01.663000'
+    # channels = np.arange(5)
+
+    time = '2015-08-27T12:40:37'
+    channels = np.arange(4)
 
     # time = '2015-02-02T06:12:31.750000'
-    # plot_window_s=1
 
     # time = '2015-02-02T06:12:26.310000'
-    # plot_window_s=1
 
     fb_id = 3
     catalog_version=5
     fit_interval_s = 0.3
 
     d = Plot_Dispersion(fb_id, channels=channels, catalog_version=catalog_version, 
-                    fit_interval_s=fit_interval_s)
-    d.plot()
+                    fit_interval_s=fit_interval_s, plot_window_s=plot_window_s)
+    d.plot(time)
     plt.tight_layout()
     plt.show()
 
