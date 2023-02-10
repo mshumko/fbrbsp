@@ -212,7 +212,7 @@ class Plot_Dispersion:
             self.xerrs[-1] = [None, None]
         self.xerrs = np.array(self.xerrs).astype(float).T - self.center_energy
         self.xerrs = np.abs(self.xerrs)
-        self.yerrs = self.cadence_ms
+        self.yerrs = self.cadence_ms/2
         return
     
     def _plot_dispersion(self, ax):
@@ -233,7 +233,7 @@ class Plot_Dispersion:
                               for s in np.array(self.hr.attrs['Col_counts']['ELEMENT_LABELS'])])
         center_energy = center_energy[self.channels]
         energy_range = np.array(self.hr.attrs['Col_counts']['ENERGY_RANGES'])
-        energy_range = energy_range[[self.channels]]
+        energy_range = energy_range[self.channels]
         return center_energy, energy_range
     
     def _format_times(self, ax):
@@ -269,7 +269,8 @@ if __name__ == '__main__':
     fit_interval_s = 0.3
 
     d = Plot_Dispersion(fb_id, channels=channels, catalog_version=catalog_version, 
-                    fit_interval_s=fit_interval_s, plot_window_s=plot_window_s)
+                    fit_interval_s=fit_interval_s, plot_window_s=plot_window_s, 
+                    full_ylabels=True)
     d.plot(time)
     print(f'{d.t0_diff_ms=}')
     print(f'{d.center_energy=}')
