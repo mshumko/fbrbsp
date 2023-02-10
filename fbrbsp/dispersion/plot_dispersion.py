@@ -126,7 +126,7 @@ class Plot_Dispersion:
             if i < len(self.channels)-1:
                 self.ax[i].get_xaxis().set_visible(False)
         self.ax[-1] = self.fig.add_subplot(inner_gs2[0, 0])
-        for i, (ax_i, color) in enumerate(zip(self.ax, self._plot_colors[self.channels][::-1])):
+        for i, (ax_i, color) in enumerate(zip(self.ax, self._plot_colors)):
             ax_i.text(0, 0.99, f'({string.ascii_uppercase[i]})', va='top', 
                       transform=ax_i.transAxes, weight='bold', color=color)
         return
