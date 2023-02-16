@@ -165,8 +165,11 @@ class Dispersion:
             if self.full_ylabels:
                 # Turn the energy range from float to integer.
                 _energy_range = self.energy_range[i].replace(' ', '')
-                _energy_range = np.array(_energy_range[:-3].split('-'), dtype=float).astype(int)
-                _energy_range = ' - '.join(_energy_range.astype(str))
+                if '>' in _energy_range:
+                    _energy_range = f'>{int(float(_energy_range[:-3].replace(">", "")))}'
+                else:
+                    _energy_range = np.array(_energy_range[:-3].split('-'), dtype=float).astype(int)
+                    _energy_range = ' - '.join(_energy_range.astype(str))
                 ax_i.set_ylabel(f'[counts/s]')
                 ax_i.text(0.07, 0.99, f'{_energy_range} keV', va='top', 
                       transform=ax_i.transAxes, weight='normal', color=color, fontsize=13)
@@ -278,18 +281,21 @@ if __name__ == '__main__':
     plot_window_s=1
 
     ## Best positive dispersion event so far
-    time = '2015-08-27T12:40:37'
-    channels = np.arange(4)
+    # time = '2015-08-27T12:40:37'
+    # channels = np.arange(4)
     
     ## A decent positive dispersion event
     # time = '2015-08-27T12:41:01.663000'
     # channels = np.arange(5)
 
+
+    ## No dispersion
     # time = '2015-02-02T06:12:31.750000'
     # channels = np.arange(6)
 
-    # time = '2015-02-02T06:12:26.310000'
-    # channels = np.arange(6)
+    ## DAPPER saturation 
+    time = '2015-02-02T06:12:26.310000'
+    channels = np.arange(6)
 
     fb_id = 3
     catalog_version=5
