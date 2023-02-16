@@ -19,11 +19,13 @@ import fbrbsp
 import fbrbsp.load.firebird
 import fbrbsp.duration.fit
 
+# matplotlib.rcParams.update({'font.size': 13})
 
 class Dispersion:
     def __init__(self, fb_id:int, channels:list=np.arange(6), 
                  catalog_version:int=5, fit_interval_s:float=0.3, 
-                 plot_window_s:float=1, full_ylabels=True):
+                 plot_window_s:float=1, full_ylabels:bool=True,
+                 annotate_fit:bool=False):
         """
         Plot the microburst HiRes data and dispersion.
 
@@ -53,6 +55,7 @@ class Dispersion:
         self.current_date = date.min
         self._plot_colors = np.array(['k', 'k', 'k', 'k', 'k', 'k'])
         self.full_ylabels = full_ylabels
+        self.annotate_fit = annotate_fit
 
         catalog_name = f'FU{self.fb_id}_microburst_catalog_{str(self.catalog_version).zfill(2)}.csv'
         catalog_path = fbrbsp.config['here'].parent / 'data' / catalog_name
@@ -85,7 +88,8 @@ class Dispersion:
         
         if self.current_date != self._time.date():
             self.hr = fbrbsp.load.firebird.Hires(self.fb_id, self._time).load()
-            self.cadence_ms = 1000*float(self.hr.attrs["CADENCE"])
+            self.cadence_s = float(self.hr.attrs["CADENCE"])
+            self.cadence_ms = 1000*self.cadence_s
             self.center_energy, self.energy_range = self.get_energy_channels()
             self.current_date = self._time.date()
 
@@ -100,7 +104,7 @@ class Dispersion:
         self._plot_fit()
         self._annotate_location()
         self._plot_dispersion(self.ax[-1])
-        self.ax[0].set_title(f'FU{self.fb_id} Microburst Dispersion\n{self.microburst_info["Time"]}')
+        self.ax[0].set_title(f'FU{self.fb_id} Microburst Dispersion\n{self.microburst_info["Time"]:%F %T}')
         self._format_times(self.ax[-2])
         self.ax[-2].set_xlabel('Time [HH:MM:SS]')
         return
@@ -129,18 +133,22 @@ class Dispersion:
         self.ax[-1] = self.fig.add_subplot(inner_gs2[0, 0])
         for i, (ax_i, color) in enumerate(zip(self.ax, self._plot_colors)):
             ax_i.text(0, 0.99, f'({string.ascii_uppercase[i]})', va='top', 
-                      transform=ax_i.transAxes, weight='bold', color=color)
+                      transform=ax_i.transAxes, weight='normal', fontsize=13, color=color)
 
         mid_ax = self.ax[len(self.ax)//2]
-        x_offset = -0.15
-        mid_ax.annotate("Energy [keV]",
-               xy=(x_offset, (len(self.ax)//2+1)*1.0), xycoords=mid_ax.transAxes,
-               xytext=(x_offset, 0.5), textcoords=mid_ax.transAxes,
-               arrowprops=dict(arrowstyle="-|>", lw=2), rotation='vertical', ha='center')
-        mid_ax.annotate("Energy [keV]",
-               xy=(x_offset, (-len(self.ax)//2+2)*1.0), xycoords=mid_ax.transAxes,
-               xytext=(x_offset, 0.5), textcoords=mid_ax.transAxes,
-               arrowprops=dict(arrowstyle="-|>", lw=2), rotation='vertical', ha='center')
+        x_offset = -0.17
+        # -1 since it is in reference to ax[0] and 0.5 to put it in the middle
+        text_y_center = -((len(self.channels)-1)/2)+0.5
+        plt.annotate("Energy",
+               xy=(x_offset, 1), xycoords=self.ax[0].transAxes,
+               xytext=(x_offset, text_y_center), textcoords=self.ax[0].transAxes,
+               arrowprops=dict(arrowstyle="-|>", lw=1), rotation='vertical', 
+               ha='center', va='center', fontsize=15)
+        plt.annotate("Energy",
+               xy=(x_offset, 0), xycoords=self.ax[-2].transAxes,
+               xytext=(x_offset, text_y_center), textcoords=self.ax[0].transAxes,
+               arrowprops=dict(arrowstyle="-", lw=1), rotation='vertical', 
+               ha='center', va='center', fontsize=15)
         return
     
     def _plot_hr(self):
@@ -151,18 +159,20 @@ class Dispersion:
         for i, (ax_i, color, channel) in enumerate(zip(self.ax[:-1][::-1], self._plot_colors, self.channels)):
             ax_i.step(
                 self.hr['Time'][self.plot_idt], 
-                self.hr['Col_counts'][self.plot_idt, channel], c=color, where='mid'
+                self.hr['Col_counts'][self.plot_idt, channel]/self.cadence_s, c=color, where='mid'
                 )
             
             if self.full_ylabels:
                 # Turn the energy range from float to integer.
                 _energy_range = self.energy_range[i].replace(' ', '')
                 _energy_range = np.array(_energy_range[:-3].split('-'), dtype=float).astype(int)
-                _energy_range = ' - '.join(_energy_range.astype(str)) + ' [keV]'
-                ax_i.set_ylabel(f'{_energy_range}')
+                _energy_range = ' - '.join(_energy_range.astype(str))
+                ax_i.set_ylabel(f'[counts/s]')
+                ax_i.text(0.07, 0.99, f'{_energy_range} keV', va='top', 
+                      transform=ax_i.transAxes, weight='normal', color=color, fontsize=13)
             else:
                 ax_i.set_ylabel(f'{channel=}')
-            max_counts = np.max(self.hr['Col_counts'][self.plot_idt, channel])
+            max_counts = np.max(self.hr['Col_counts'][self.plot_idt, channel])/self.cadence_s
             ax_i.set_ylim(0, 1.2*max_counts)
         return
     
@@ -176,7 +186,7 @@ class Dispersion:
         current_date = time_array[0].floor('d')
         x_data_seconds = (time_array-current_date).total_seconds()
 
-        for i, (ax_i, color, channel) in enumerate(zip(self.ax[:-1][::-1], self._plot_colors, self.channels)):
+        for ax_i, color, channel in zip(self.ax[:-1][::-1], self._plot_colors, self.channels):
             fit_bounds = (
                 self.microburst_info['Time']-self.fit_interval_s/2,
                 self.microburst_info['Time']+self.fit_interval_s/2
@@ -194,14 +204,15 @@ class Dispersion:
                 continue
 
             gaus_y = fbrbsp.duration.fit.Duration.gaus_lin_function(x_data_seconds, *popt)
-            ax_i.plot(time_array, gaus_y, c=color, ls='--')
+            ax_i.plot(time_array, gaus_y/self.cadence_s, c=color, ls='--')
 
-            fit_params=(
-                f"FWHM={round(self.microburst_info[f'fwhm_{channel}'], 2)} [s]\n"
-                f"R^2 = {round(self.microburst_info[f'r2_{channel}'], 2)}\n"
-                f"adj_R^2 = {round(self.microburst_info[f'adj_r2_{channel}'], 2)}\n"
-            )
-            ax_i.text(0.01, 0.87, fit_params, va='top', transform=ax_i.transAxes, color=color)
+            if not self.annotate_fit:
+                fit_params=(
+                    f"FWHM={round(self.microburst_info[f'fwhm_{channel}'], 2)} [s]\n"
+                    f"R^2 = {round(self.microburst_info[f'r2_{channel}'], 2)}\n"
+                    f"adj_R^2 = {round(self.microburst_info[f'adj_r2_{channel}'], 2)}\n"
+                )
+                ax_i.text(0.01, 0.87, fit_params, va='top', transform=ax_i.transAxes, color=color)
         return
     
     def _annotate_location(self):
