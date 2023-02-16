@@ -153,8 +153,12 @@ class Dispersion:
                 self.hr['Time'][self.plot_idt], 
                 self.hr['Col_counts'][self.plot_idt, channel], c=color, where='mid'
                 )
-            _energy_range = self.energy_range[i].replace(' ', '')
+            
             if self.full_ylabels:
+                # Turn the energy range from float to integer.
+                _energy_range = self.energy_range[i].replace(' ', '')
+                _energy_range = np.array(_energy_range[:-3].split('-'), dtype=float).astype(int)
+                _energy_range = ' - '.join(_energy_range.astype(str)) + ' [keV]'
                 ax_i.set_ylabel(f'{_energy_range}')
             else:
                 ax_i.set_ylabel(f'{channel=}')
