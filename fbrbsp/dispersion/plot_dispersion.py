@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 import matplotlib.dates
 from matplotlib.ticker import FuncFormatter
+from matplotlib.patches import ConnectionPatch
 import matplotlib.gridspec as gridspec
 
 import fbrbsp
@@ -19,7 +20,7 @@ import fbrbsp.load.firebird
 import fbrbsp.duration.fit
 
 
-class Plot_Dispersion:
+class Dispersion:
     def __init__(self, fb_id:int, channels:list=np.arange(6), 
                  catalog_version:int=5, fit_interval_s:float=0.3, 
                  plot_window_s:float=1, full_ylabels=True):
@@ -129,6 +130,17 @@ class Plot_Dispersion:
         for i, (ax_i, color) in enumerate(zip(self.ax, self._plot_colors)):
             ax_i.text(0, 0.99, f'({string.ascii_uppercase[i]})', va='top', 
                       transform=ax_i.transAxes, weight='bold', color=color)
+
+        mid_ax = self.ax[len(self.ax)//2]
+        x_offset = -0.15
+        mid_ax.annotate("Energy [keV]",
+               xy=(x_offset, (len(self.ax)//2+1)*1.0), xycoords=mid_ax.transAxes,
+               xytext=(x_offset, 0.5), textcoords=mid_ax.transAxes,
+               arrowprops=dict(arrowstyle="-|>", lw=2), rotation='vertical', ha='center')
+        mid_ax.annotate("Energy [keV]",
+               xy=(x_offset, (-len(self.ax)//2+2)*1.0), xycoords=mid_ax.transAxes,
+               xytext=(x_offset, 0.5), textcoords=mid_ax.transAxes,
+               arrowprops=dict(arrowstyle="-|>", lw=2), rotation='vertical', ha='center')
         return
     
     def _plot_hr(self):
@@ -143,7 +155,7 @@ class Plot_Dispersion:
                 )
             _energy_range = self.energy_range[i].replace(' ', '')
             if self.full_ylabels:
-                ax_i.set_ylabel(f'{channel=}\n({_energy_range})\n[counts/{self.cadence_ms} ms]')
+                ax_i.set_ylabel(f'{_energy_range}')
             else:
                 ax_i.set_ylabel(f'{channel=}')
             max_counts = np.max(self.hr['Col_counts'][self.plot_idt, channel])
@@ -268,7 +280,7 @@ if __name__ == '__main__':
     catalog_version=5
     fit_interval_s = 0.3
 
-    d = Plot_Dispersion(fb_id, channels=channels, catalog_version=catalog_version, 
+    d = Dispersion(fb_id, channels=channels, catalog_version=catalog_version, 
                     fit_interval_s=fit_interval_s, plot_window_s=plot_window_s, 
                     full_ylabels=True)
     d.plot(time)
