@@ -41,6 +41,10 @@ class Dispersion:
             The fit interval used to fit microbursts in fit.py
         plot_window_s: float
             The plot window to use.
+        full_ylabels: bool
+            Draw energy channel number or the keV energy range.
+        annotate_fit: bool
+            Add an "Energy" arrow pointing up.
 
         Methods
         -------
@@ -231,7 +235,7 @@ class Dispersion:
     
     def _get_dispersion(self):
         # Time differences with respect to channel 0
-        t0_keys = [f't0_{channel}' for channel in channels]
+        t0_keys = [f't0_{channel}' for channel in self.channels]
         t0 = [dateutil.parser.parse(self.microburst_info[t0_key]) for t0_key in t0_keys]
         self.t0_diff_ms = [1E3*(t0_i - t0[0]).total_seconds() for t0_i in t0]
 
