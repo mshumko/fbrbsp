@@ -78,16 +78,6 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         else:
             self.ax = ax
 
-        self.ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
-            yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
-        max_abs_lim = 1.1*np.max(np.abs(self.ax.get_ylim()))
-        self.ax.set_ylim(-max_abs_lim, max_abs_lim)
-        self.ax.axhline(c='k', ls='--')
-        self.ax.set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
-
-        locator=matplotlib.ticker.FixedLocator(np.linspace(-max_abs_lim, max_abs_lim, num=5))
-        self.ax.yaxis.set_major_locator(locator)
-
         if hasattr(self, 'trace'):
             energies = np.linspace(
                 self.center_energy[0] - self.xerrs[0,0], self.center_energy[-1] + self.xerrs[0,-1]
@@ -98,6 +88,16 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             for idx_i in idx:
                 self.ax.plot(energies, model.trace['intercept'][idx_i] + energies*model.trace['slope'][idx_i], 
                             c='grey', alpha=0.2)
+                
+        self.ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
+            yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
+        max_abs_lim = 1.1*np.max(np.abs(self.ax.get_ylim()))
+        self.ax.set_ylim(-max_abs_lim, max_abs_lim)
+        self.ax.axhline(c='k', ls='--')
+        self.ax.set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
+
+        locator=matplotlib.ticker.FixedLocator(np.linspace(-max_abs_lim, max_abs_lim, num=5))
+        self.ax.yaxis.set_major_locator(locator)
         return
     
     def fit(self):
