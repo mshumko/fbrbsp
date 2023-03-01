@@ -67,7 +67,7 @@ class Dispersion:
         self.catalog['Time'] = pd.to_datetime(self.catalog['Time'])
         return
     
-    def plot(self, time:Union[str, datetime, pd.Timestamp], annotate_fit=True):
+    def plot(self, time:Union[str, datetime, pd.Timestamp], annotate_fit=True, log=False):
         """
         Plot the microburst dispersion.
 
@@ -77,6 +77,8 @@ class Dispersion:
             The time to reference and plot the microburst from the catalog. 
         annotate_fit: bool
             Annotate each subplot with the Gaussian FWHM and fit quality.
+        log: bool
+            Plot HiRes data in linear or log scale.
         """
         self._time = time
         self.annotate_fit = annotate_fit
@@ -103,7 +105,7 @@ class Dispersion:
             )
         self.plot_idt = np.where((self.hr['Time'] > time_range[0]) & (self.hr['Time'] < time_range[1]))[0]
 
-        self._create_subplots()
+        self._create_subplots(log)
         self._plot_hr()
         self._plot_fit()
         self._annotate_location()
@@ -113,7 +115,7 @@ class Dispersion:
         self.ax[-2].set_xlabel('Time [HH:MM:SS]')
         return
     
-    def _create_subplots(self):
+    def _create_subplots(self, log):
         """"
         Create empty subplots for the HiRes line plots and dispersion scatter plot.
         """
@@ -139,20 +141,22 @@ class Dispersion:
             ax_i.text(0, 0.99, f'({string.ascii_uppercase[i]})', va='top', 
                       transform=ax_i.transAxes, weight='normal', fontsize=13, color=color)
 
-        mid_ax = self.ax[len(self.ax)//2]
         x_offset = -0.17
         # -1 since it is in reference to ax[0] and 0.5 to put it in the middle
         text_y_center = -((len(self.channels)-1)/2)+0.5
         plt.annotate("Energy",
                xy=(x_offset, 1), xycoords=self.ax[0].transAxes,
                xytext=(x_offset, text_y_center), textcoords=self.ax[0].transAxes,
-               arrowprops=dict(arrowstyle="-|>", lw=1), rotation='vertical', 
+               arrowprops=dict(arrowstyle="-|>", lw=1, color='black'), rotation='vertical', 
                ha='center', va='center', fontsize=15)
         plt.annotate("Energy",
                xy=(x_offset, 0), xycoords=self.ax[-2].transAxes,
                xytext=(x_offset, text_y_center), textcoords=self.ax[0].transAxes,
                arrowprops=dict(arrowstyle="-", lw=1), rotation='vertical', 
                ha='center', va='center', fontsize=15)
+        if log:
+            for ax_i in self.ax[:-1]:
+                ax_i.set_yscale('log')
         return
     
     def _plot_hr(self):
@@ -285,8 +289,8 @@ if __name__ == '__main__':
     plot_window_s=1
 
     ## Best positive dispersion event so far
-    # time = '2015-08-27T12:40:37'
-    # channels = np.arange(4)
+    time = '2015-08-27T12:40:37'
+    channels = np.arange(4)
     
     ## A decent positive dispersion event
     # time = '2015-08-27T12:41:01.663000'
@@ -298,8 +302,8 @@ if __name__ == '__main__':
     # channels = np.arange(6)
 
     ## DAPPER saturation 
-    time = '2015-02-02T06:12:26.310000'
-    channels = np.arange(6)
+    # time = '2015-02-02T06:12:26.310000'
+    # channels = np.arange(6)
 
     fb_id = 3
     catalog_version=5
