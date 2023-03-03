@@ -159,7 +159,7 @@ pass
 ax = model.plot()
 ax.set_xlim(200, 800)
 ax.set_ylim(-80, 80)
-loc = matplotlib.ticker.MaxNLocator(5) # this locator puts ticks at regular intervals
+loc = matplotlib.ticker.MaxNLocator(7) # this locator puts ticks at regular intervals
 ax.yaxis.set_major_locator(loc)
 plt.show()
 # print(f'{model.t0_diff_ms=}')
