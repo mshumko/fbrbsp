@@ -2,7 +2,7 @@
 import dateutil.parser
 
 import pymc3 as pm
-from pymc3 import HalfCauchy, Model, Normal, sample
+from pymc3 import HalfCauchy, Model, Normal, sample, Uniform
 import arviz as az
 import matplotlib.pyplot as plt
 import matplotlib.ticker
@@ -79,15 +79,25 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             self.ax = ax
 
         if hasattr(self, 'trace'):
-            energies = np.linspace(
-                self.center_energy[0] - self.xerrs[0,0], self.center_energy[-1] + self.xerrs[0,-1]
-                )
-            self.ax.plot(energies, model.trace['intercept'].mean() + energies*model.trace['slope'].mean(), 'k:')
+            energies = np.linspace(200, 1000)
+            # energies = np.linspace(
+            #     self.center_energy[0] - self.xerrs[0,0], self.center_energy[-1] + self.xerrs[0,-1]
+            #     )
 
-            idx = np.random.choice(np.arange(len(model.trace['slope'])), n_samples, replace=False)
-            for idx_i in idx:
-                self.ax.plot(energies, model.trace['intercept'][idx_i] + energies*model.trace['slope'][idx_i], 
-                            c='grey', alpha=0.2)
+            idx = np.random.choice(np.arange(len(self.trace['slope'])), n_samples, replace=False)
+            lines = np.nan*np.zeros((energies.shape[0], n_samples))
+            for i, idx_i in enumerate(idx):
+                lines[:, i] = self.trace['intercept'][idx_i] + energies*self.trace['slope'][idx_i]
+                # self.ax.plot(energies, lines[:, i], c='grey', alpha=0.2)
+            lower_boundary = np.quantile(lines, 0.025, axis=1)
+            upper_boundary = np.quantile(lines, 0.975, axis=1)
+            self.ax.fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
+            self.ax.plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'r:')
+
+            linear_fit_str = (f'$\Delta t = {{{round(self.trace["slope"].mean(), 3)}}} \mathrm{{{[s/keV]}}}$'
+                f'$\cdot E {{{round(self.trace["intercept"].mean(), 3)}}}$ [s]')
+            self.ax.text(0.05, 0.95, linear_fit_str, transform=self.ax.transAxes, 
+                        va='top', color='r', fontsize=15)
                 
         self.ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
             yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
@@ -105,14 +115,18 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         
         """
         with Model() as model:
-            intercept = Normal("intercept", 0, sigma=100)
-            slope = Normal("slope", 0, sigma=100)
+            intercept = Normal("intercept", -10, sigma=50)
+            slope = Normal("slope", -1, sigma=5)
 
-            likelihood = Normal("y", mu=intercept + slope * self.center_energy, 
-                                sigma=self.cadence_ms, observed=self.t0_diff_ms)
+            # likelihood = Normal("y", mu=intercept + slope * self.center_energy, 
+            #                     sigma=self.cadence_ms, observed=self.t0_diff_ms)
+            likelihood = Normal("y", 
+                mu=intercept + slope * self.center_energy, 
+                sigma=self.cadence_ms/2,
+                observed=self.t0_diff_ms)                                
             # cores=1 due to a multiprocessing bug in Windows's pymc3. 
             # See this discussion: https://discourse.pymc.io/t/error-during-run-sampling-method/2522. 
-            self.trace = sample(10_000, cores=1, tune=10_000)
+            self.trace = sample(10_000, cores=1, tune=20_000)
         return
 
     def get_dispersion(self):
