@@ -74,9 +74,9 @@ class Bayes_Fit(plot_dispersion.Dispersion):
     def plot(self, ax=None, n_samples=500):
 
         if ax is None:
-            fig, self.ax = plt.subplots()
+            fig, self._ax = plt.subplots()
         else:
-            self.ax = ax
+            self._ax = ax
 
         if hasattr(self, 'trace'):
             energies = np.linspace(200, 1000)
@@ -91,24 +91,26 @@ class Bayes_Fit(plot_dispersion.Dispersion):
                 # self.ax.plot(energies, lines[:, i], c='grey', alpha=0.2)
             lower_boundary = np.quantile(lines, 0.025, axis=1)
             upper_boundary = np.quantile(lines, 0.975, axis=1)
-            self.ax.fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
-            self.ax.plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'r:')
+            self._ax.fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
+            self._ax.plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'r:')
 
-            linear_fit_str = (f'$\Delta t = {{{round(self.trace["slope"].mean(), 3)}}}$ [s/keV]'
-                f'$\cdot E {{{round(self.trace["intercept"].mean(), 3)}}}$ [s]')
-            self.ax.text(0.05, 0.95, linear_fit_str, transform=self.ax.transAxes, 
+            quantiles = np.quantile(self.trace["slope"], [0.025, 0.975])
+            quantiles = np.round(1000*quantiles)
+            linear_fit_str = (f'slope = {round(1000*self.trace["slope"].mean())} [ms/keV]\n'
+                f'95% CI = {np.round(quantiles)}')
+            self._ax.text(0.05, 0.95, linear_fit_str, transform=self._ax.transAxes, 
                         va='top', color='r', fontsize=15)
                 
-        self.ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
+        self._ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
             yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
-        max_abs_lim = 1.1*np.max(np.abs(self.ax.get_ylim()))
-        self.ax.set_ylim(-max_abs_lim, max_abs_lim)
-        self.ax.axhline(c='k', ls='--')
-        self.ax.set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
+        max_abs_lim = 1.1*np.max(np.abs(self._ax.get_ylim()))
+        self._ax.set_ylim(-max_abs_lim, max_abs_lim)
+        self._ax.axhline(c='k', ls='--')
+        self._ax.set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
 
         locator=matplotlib.ticker.FixedLocator(np.linspace(-max_abs_lim, max_abs_lim, num=5))
-        self.ax.yaxis.set_major_locator(locator)
-        return
+        self._ax.yaxis.set_major_locator(locator)
+        return self._ax
     
     def fit(self):
         """
@@ -154,7 +156,12 @@ model.load(time)
 model.get_dispersion()
 model.fit()
 pass
-model.plot()
+ax = model.plot()
+ax.set_xlim(200, 800)
+ax.set_ylim(-80, 80)
+loc = matplotlib.ticker.MaxNLocator(5) # this locator puts ticks at regular intervals
+ax.yaxis.set_major_locator(loc)
 plt.show()
 # print(f'{model.t0_diff_ms=}')
 # print(f'{model.center_energy=}')
+pass
