@@ -94,7 +94,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             self.ax.fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
             self.ax.plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'r:')
 
-            linear_fit_str = (f'$\Delta t = {{{round(self.trace["slope"].mean(), 3)}}} \mathrm{{{[s/keV]}}}$'
+            linear_fit_str = (f'$\Delta t = {{{round(self.trace["slope"].mean(), 3)}}}$ [s/keV]'
                 f'$\cdot E {{{round(self.trace["intercept"].mean(), 3)}}}$ [s]')
             self.ax.text(0.05, 0.95, linear_fit_str, transform=self.ax.transAxes, 
                         va='top', color='r', fontsize=15)
