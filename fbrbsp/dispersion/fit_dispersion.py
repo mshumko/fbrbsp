@@ -71,50 +71,56 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         self.center_energy, self.energy_range = self.get_energy_channels()
         return
     
-    def plot(self, ax=None, n_samples=500):
+    def plot(self, choose_n_samples=500):
+        """
+        Parameters
+        ----------
+        choose_n_samples: int
+            How many lines to plot
 
-        if ax is None:
-            fig, self._ax = plt.subplots()
-        else:
-            self._ax = ax
-
+        Returns
+        -------
+        list[plt.Axes]
+            The list of subplots.
+        """
+        self.ax = super().plot(self._time)
+    
         if hasattr(self, 'trace'):
             energies = np.linspace(200, 1000)
             # energies = np.linspace(
             #     self.center_energy[0] - self.xerrs[0,0], self.center_energy[-1] + self.xerrs[0,-1]
             #     )
 
-            idx = np.random.choice(np.arange(len(self.trace['slope'])), n_samples, replace=False)
-            lines = np.nan*np.zeros((energies.shape[0], n_samples))
+            idx = np.random.choice(np.arange(len(self.trace['slope'])), choose_n_samples, replace=False)
+            lines = np.nan*np.zeros((energies.shape[0], choose_n_samples))
             for i, idx_i in enumerate(idx):
                 lines[:, i] = self.trace['intercept'][idx_i] + energies*self.trace['slope'][idx_i]
                 # self.ax.plot(energies, lines[:, i], c='grey', alpha=0.2)
             lower_boundary = np.quantile(lines, 0.025, axis=1)
             upper_boundary = np.quantile(lines, 0.975, axis=1)
-            self._ax.fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
-            self._ax.plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'r:')
+            self.ax[-1].fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
+            self.ax[-1].plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'k--')
 
-            quantiles = np.quantile(self.trace["slope"], [0.025, 0.975])
-            quantiles = np.round(1000*quantiles)
-            linear_fit_str = (f'slope = {round(1000*self.trace["slope"].mean())} [ms/keV]\n'
-                f'95% CI = {np.round(quantiles)}')
-            self._ax.text(0.05, 0.95, linear_fit_str, transform=self._ax.transAxes, 
-                        va='top', color='r', fontsize=15)
+            quantiles = np.round(np.quantile(self.trace["slope"], [0.025, 0.975]), 3)
+            linear_fit_str = (f'slope = {round(self.trace["slope"].mean(), 3)} [ms/keV]'
+                f' | CI = [{quantiles[0]}, {quantiles[1]}]')
+            self.ax[-1].text(0.99, 0, linear_fit_str, transform=self.ax[-1].transAxes, 
+                        va='bottom', ha='right', color='k', fontsize=13)
                 
-        self._ax.errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
+        self.ax[-1].errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
             yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
-        max_abs_lim = 1.1*np.max(np.abs(self._ax.get_ylim()))
-        self._ax.set_ylim(-max_abs_lim, max_abs_lim)
-        self._ax.axhline(c='k', ls='--')
-        self._ax.set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
+        max_abs_lim = 1.1*np.max(np.abs(self.ax[-1].get_ylim()))
+        self.ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
+        self.ax[-1].axhline(c='k', ls='-')
+        self.ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
 
         locator=matplotlib.ticker.FixedLocator(np.linspace(-max_abs_lim, max_abs_lim, num=5))
-        self._ax.yaxis.set_major_locator(locator)
-        return self._ax
+        self.ax[-1].yaxis.set_major_locator(locator)
+        return self.ax
     
-    def fit(self):
+    def fit(self, samples=10_000, tune=20_000):
         """
-        
+        The Bayes model run.
         """
         with Model() as model:
             intercept = Normal("intercept", -10, sigma=50)
@@ -128,7 +134,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
                 observed=self.t0_diff_ms)                                
             # cores=1 due to a multiprocessing bug in Windows's pymc3. 
             # See this discussion: https://discourse.pymc.io/t/error-during-run-sampling-method/2522. 
-            self.trace = sample(10_000, cores=1, tune=20_000)
+            self.trace = sample(samples, cores=1, tune=tune)
         return
 
     def get_dispersion(self):
@@ -157,10 +163,10 @@ model.get_dispersion()
 model.fit()
 pass
 ax = model.plot()
-ax.set_xlim(200, 800)
-ax.set_ylim(-80, 80)
+ax[-1].set_xlim(200, 800)
+ax[-1].set_ylim(-80, 80)
 loc = matplotlib.ticker.MaxNLocator(7) # this locator puts ticks at regular intervals
-ax.yaxis.set_major_locator(loc)
+ax[-1].yaxis.set_major_locator(loc)
 plt.show()
 # print(f'{model.t0_diff_ms=}')
 # print(f'{model.center_energy=}')

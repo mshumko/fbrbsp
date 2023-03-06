@@ -113,7 +113,7 @@ class Dispersion:
         self.ax[0].set_title(f'FU{self.fb_id} Microburst Dispersion\n{self.microburst_info["Time"]:%F %T}')
         self._format_times(self.ax[-2])
         self.ax[-2].set_xlabel('Time [HH:MM:SS]')
-        return
+        return self.ax
     
     def _create_subplots(self, log):
         """"
