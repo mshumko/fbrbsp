@@ -96,7 +96,7 @@ class Dispersion:
             self.hr = fbrbsp.load.firebird.Hires(self.fb_id, self._time).load()
             self.cadence_s = float(self.hr.attrs["CADENCE"])
             self.cadence_ms = 1000*self.cadence_s
-            self.center_energy, self.energy_range = self.get_energy_channels()
+            self.center_energy, self.energy_range, self.energy_range_array = self.get_energy_channels()
             self.current_date = self._time.date()
 
         time_range = (
@@ -171,15 +171,8 @@ class Dispersion:
                 )
             
             if self.full_ylabels:
-                # Turn the energy range from float to integer.
-                _energy_range = self.energy_range[i].replace(' ', '')
-                if '>' in _energy_range:
-                    _energy_range = f'>{int(float(_energy_range[:-3].replace(">", "")))}'
-                else:
-                    _energy_range = np.array(_energy_range[:-3].split('-'), dtype=float).astype(int)
-                    _energy_range = ' - '.join(_energy_range.astype(str))
                 ax_i.set_ylabel(f'[counts/s]')
-                ax_i.text(0.07, 0.99, f'{_energy_range} keV', va='top', 
+                ax_i.text(0.07, 0.99, f'{self.energy_range_array[i, 0]} - {self.energy_range_array[i, 1]} keV', va='top', 
                       transform=ax_i.transAxes, weight='normal', color=color, fontsize=13)
             else:
                 ax_i.set_ylabel(f'{channel=}')
@@ -272,7 +265,19 @@ class Dispersion:
         center_energy = center_energy[self.channels]
         energy_range = np.array(self.hr.attrs['Col_counts']['ENERGY_RANGES'])
         energy_range = energy_range[self.channels]
-        return center_energy, energy_range
+
+        # Turn the energy range from strings to a (n_channels, 2) array of energy channel bounds.
+        energy_range_array = np.zeros((len(self.channels), 2), dtype=float)
+        for i in range(len(self.channels)):
+            _energy_range_row = energy_range[i].replace(' ', '')
+            if '>' in _energy_range_row:
+                # Special case with integral channel.
+                _lower_intergral_energy= f'>{int(float(_energy_range_row[:-3].replace(">", "")))}'
+                energy_range_array[i, :] = [_lower_intergral_energy, np.nan]
+            else:
+                # DIfferential channels.
+                energy_range_array[i, :] = np.array(_energy_range_row[:-3].split('-'), dtype=float).astype(int)
+        return center_energy, energy_range, energy_range_array.astype(int)
     
     def _format_times(self, ax):
         locator=matplotlib.ticker.MaxNLocator(nbins=5)
