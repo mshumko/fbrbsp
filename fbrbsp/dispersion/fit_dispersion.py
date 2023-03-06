@@ -105,8 +105,12 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             self.ax[-1].text(0.99, 0, linear_fit_str, transform=self.ax[-1].transAxes, 
                         va='bottom', ha='right', color='k', fontsize=13)
                 
+        if self.energy_dist is not None:
+            _xerrs = self.xerrs
+        else:
+            _xerrs = None
         self.ax[-1].errorbar(self.center_energy, self.t0_diff_ms, c='k', marker='.', 
-            yerr=self.yerrs, xerr=self.xerrs, capsize=2, ls='None')
+            yerr=self.yerrs, xerr=_xerrs, capsize=2, ls='None')
         max_abs_lim = 1.1*np.max(np.abs(self.ax[-1].get_ylim()))
         self.ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
         self.ax[-1].axhline(c='k', ls='-')
@@ -116,9 +120,12 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         self.ax[-1].yaxis.set_major_locator(locator)
         return self.ax
     
-    def fit_dispersion(self, samples=10_000, tune=20_000, energy_dist='uniform'):
+    def fit_dispersion(self, samples=10_000, tune=20_000, energy_dist=None):
         """
-        The Bayes errors-in-variables model.
+        The Bayes errors-in-variables (energy) model.
+
+        See https://discourse.pymc.io/t/errors-in-variables-model-in-pymc3/3519
+        and https://arxiv.org/pdf/1906.03989.pdf.
 
         Parameters
         ----------
@@ -128,36 +135,43 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             The number of tuning (burn-in) steps.
         energy_dist: str
             The energy channel uncertainty model. Can be None for no uncertainty,
-            'uniform', or 'exp'.
+            'uniform', or 'exp'. 
+            - None: All counts arrived with a single energy at the center energy
+            of each energy channel.
+            - 'uniform': all counts are uniformly distributed inside each channel's
+            energy bounds.
+            - 'exp': the counts are exponentially distributed in each energy 
+            channel with the exponential decay parameter (E_0) calculated by
+            fitting an exponential to the Col_flux variable.
         """
-        energy_dist = energy_dist.lower()
+        if energy_dist is None:
+            self.energy_dist = None
+        else:
+            self.energy_dist = energy_dist.lower()
 
         with Model() as model:
             # Parameters we ultimately care about
             intercept = Normal("intercept", -10, sigma=50)
             slope = Normal("slope", -1, sigma=5)
 
-            # Uncertainty in the energy channels---a errors-in-variables model.
-            # See https://discourse.pymc.io/t/errors-in-variables-model-in-pymc3/3519
-            # and https://arxiv.org/pdf/1906.03989.pdf.
             # call energy.random(size=...) to generate random values and confirm
             # that they are correctly generated. See 
             # https://www.pymc.io/projects/docs/en/v3/Probability_Distributions.html#using-pymc-distributions-without-a-model
-            if energy_dist == 'uniform': 
+            if self.energy_dist == 'uniform': 
                 energy = Uniform('energy',
                                 lower=self.energy_range_array[:, 0], 
                                 upper=self.energy_range_array[:, 1],
                                 shape=self.energy_range_array.shape[0]
                                 )
-            elif energy_dist == 'exp':
+            elif self.energy_dist == 'exp':
                 _energy_spec = self.fit_energy_spectrum()
-                energy = Bound(
-                    Exponential('energy', lam=1/_energy_spec['E0'], 
-                                shape=self.energy_range_array.shape[0]),
+                # First set of parameters for the Bound, and second set for Exponential.
+                energy = Bound(Exponential,
                     lower=self.energy_range_array[:, 0], 
                     upper=self.energy_range_array[:, 1]
-                    )
-            elif energy_dist is None:
+                    )('energy', lam=1/_energy_spec['E0'], 
+                    shape=self.energy_range_array.shape[0])
+            elif self.energy_dist is None:
                 energy = self.center_energy
             else:
                 raise NotImplementedError
