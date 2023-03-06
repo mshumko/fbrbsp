@@ -118,13 +118,13 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         self.ax[-1].yaxis.set_major_locator(locator)
         return self.ax
     
-    def fit(self, samples=10_000, tune=20_000, energy_dist='uniform'):
+    def fit_dispersion(self, samples=10_000, tune=20_000, energy_dist='uniform'):
         """
-        The Bayes model run.
+        The Bayes errors-in-variables model.
         """
         energy_dist = energy_dist.lower()
-        supported_energy_dists = ['uniform']
-        if energy_dist not in ['uniform']:
+        supported_energy_dists = ['uniform', 'exp']
+        if energy_dist not in supported_energy_dists:
             raise ValueError(f'{energy_dist=} is not a supported '
                              f'distribution {supported_energy_dists}.')
         with Model() as model:
@@ -141,6 +141,8 @@ class Bayes_Fit(plot_dispersion.Dispersion):
                                 upper=self.energy_range_array[:, 1],
                                 shape=4
                                 )
+            elif energy_dist == 'exp':
+                _energy_spec = self.fit_energy_spectrum()
             else:
                 raise NotImplementedError
 
@@ -151,6 +153,20 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             # cores=1 due to a multiprocessing bug in Windows's pymc3. 
             # See this discussion: https://discourse.pymc.io/t/error-during-run-sampling-method/2522. 
             self.trace = sample(samples, cores=1, tune=tune)
+        return
+    
+    def fit_energy_spectrum(self, validate=True):
+        """
+        Calculate the energy spectrum of the HiRes data.
+        """
+        fit_interval_idx = np.where(
+                (self.hr['Time'] > self.microburst_info['Time']-self.fit_interval_s/2) &
+                (self.hr['Time'] <= self.microburst_info['Time']+self.fit_interval_s/2)
+            )[0]
+        integrated_counts = np.sum(self.hr['Col_counts'][fit_interval_idx], axis=0)[self.channels]
+
+        if validate:
+            raise NotImplementedError
         return
 
     def get_dispersion(self):
@@ -176,7 +192,7 @@ model = Bayes_Fit(fb_id, channels=channels, catalog_version=catalog_version,
                 full_ylabels=True)
 model.load(time)
 model.get_dispersion()
-model.fit()
+model.fit_dispersion(energy_dist='exp')
 pass
 ax = model.plot()
 ax[-1].set_xlim(200, 800)
