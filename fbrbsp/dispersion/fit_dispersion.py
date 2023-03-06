@@ -2,13 +2,11 @@
 import dateutil.parser
 
 import pymc3 as pm
-from pymc3 import HalfCauchy, Model, Normal, sample, Uniform
-import arviz as az
+from pymc3 import Model, Normal, sample, Uniform, Exponential
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import numpy as np
-import pandas as pd
-import xarray as xr
+import scipy.stats
 
 import plot_dispersion
 import fbrbsp
@@ -135,7 +133,10 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             # Uncertainty in the energy channels---a errors-in-variables model.
             # See https://discourse.pymc.io/t/errors-in-variables-model-in-pymc3/3519
             # and https://arxiv.org/pdf/1906.03989.pdf.
-            if energy_dist == 'uniform':
+            # call energy.random(size=...) to generate random values and confirm
+            # that they are correctly generated. See 
+            # https://www.pymc.io/projects/docs/en/v3/Probability_Distributions.html#using-pymc-distributions-without-a-model
+            if energy_dist == 'uniform': 
                 energy = Uniform('energy',
                                 lower=self.energy_range_array[:, 0], 
                                 upper=self.energy_range_array[:, 1],
@@ -143,6 +144,10 @@ class Bayes_Fit(plot_dispersion.Dispersion):
                                 )
             elif energy_dist == 'exp':
                 _energy_spec = self.fit_energy_spectrum()
+                energy = Exponential('energy',
+                                lam=1/_energy_spec['E0'],
+                                shape=4
+                                )
             else:
                 raise NotImplementedError
 
@@ -155,19 +160,28 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             self.trace = sample(samples, cores=1, tune=tune)
         return
     
-    def fit_energy_spectrum(self, validate=True):
+    def fit_energy_spectrum(self, validate=False):
         """
-        Calculate the energy spectrum of the HiRes data.
+        Calculate the energy spectrum of the HiRes data assuming an exponential spectrum model.
         """
         fit_interval_idx = np.where(
                 (self.hr['Time'] > self.microburst_info['Time']-self.fit_interval_s/2) &
                 (self.hr['Time'] <= self.microburst_info['Time']+self.fit_interval_s/2)
             )[0]
-        integrated_counts = np.sum(self.hr['Col_counts'][fit_interval_idx], axis=0)[self.channels]
+        integrated_flux = np.sum(self.hr['Col_flux'][fit_interval_idx], axis=0)[self.channels]
+
+        slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(
+            self.center_energy, y=np.log(integrated_flux)
+            )
+        _spectrum = {'J0': np.exp(intercept), 'E0':(-1/slope)}
 
         if validate:
-            raise NotImplementedError
-        return
+            energies = np.linspace(self.center_energy[0], self.center_energy[-1])
+            plt.step(self.center_energy, integrated_flux)
+            plt.plot(energies, _spectrum['J0']*np.exp(-energies/_spectrum['E0']))
+            plt.yscale('log')
+            plt.show()
+        return _spectrum
 
     def get_dispersion(self):
         """
