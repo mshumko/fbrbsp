@@ -68,7 +68,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         self.hr = fbrbsp.load.firebird.Hires(self.fb_id, time).load()
         self.cadence_s = float(self.hr.attrs["CADENCE"])
         self.cadence_ms = 1000*self.cadence_s
-        self.center_energy, self.energy_range = self.get_energy_channels()
+        self.center_energy, self.energy_range, self.energy_range_array = super().get_energy_channels()
         return
     
     def plot(self, choose_n_samples=500):
@@ -118,18 +118,34 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         self.ax[-1].yaxis.set_major_locator(locator)
         return self.ax
     
-    def fit(self, samples=10_000, tune=20_000):
+    def fit(self, samples=10_000, tune=20_000, energy_dist='uniform'):
         """
         The Bayes model run.
         """
+        energy_dist = energy_dist.lower()
+        supported_energy_dists = ['uniform']
+        if energy_dist not in ['uniform']:
+            raise ValueError(f'{energy_dist=} is not a supported '
+                             f'distribution {supported_energy_dists}.')
         with Model() as model:
+            # Parameters we ultimately care about
             intercept = Normal("intercept", -10, sigma=50)
             slope = Normal("slope", -1, sigma=5)
 
-            # likelihood = Normal("y", mu=intercept + slope * self.center_energy, 
-            #                     sigma=self.cadence_ms, observed=self.t0_diff_ms)
+            # Uncertainty in the energy channels---a errors-in-variables model.
+            # See https://discourse.pymc.io/t/errors-in-variables-model-in-pymc3/3519
+            # and https://arxiv.org/pdf/1906.03989.pdf.
+            if energy_dist == 'uniform':
+                energy = Uniform('energy',
+                                lower=self.energy_range_array[:, 0], 
+                                upper=self.energy_range_array[:, 1],
+                                shape=4
+                                )
+            else:
+                raise NotImplementedError
+
             likelihood = Normal("y", 
-                mu=intercept + slope * self.center_energy, 
+                mu=intercept + slope * energy, 
                 sigma=self.cadence_ms/2,
                 observed=self.t0_diff_ms)                                
             # cores=1 due to a multiprocessing bug in Windows's pymc3. 
