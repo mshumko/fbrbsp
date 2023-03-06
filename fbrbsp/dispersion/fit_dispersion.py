@@ -2,7 +2,7 @@
 import dateutil.parser
 
 import pymc3 as pm
-from pymc3 import Model, Normal, sample, Uniform, Exponential
+from pymc3 import Model, Normal, sample, Uniform, Exponential, Bound
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import numpy as np
@@ -119,12 +119,19 @@ class Bayes_Fit(plot_dispersion.Dispersion):
     def fit_dispersion(self, samples=10_000, tune=20_000, energy_dist='uniform'):
         """
         The Bayes errors-in-variables model.
+
+        Parameters
+        ----------
+        samples: int
+            The number of samples in the trace.
+        tune: int
+            The number of tuning (burn-in) steps.
+        energy_dist: str
+            The energy channel uncertainty model. Can be None for no uncertainty,
+            'uniform', or 'exp'.
         """
         energy_dist = energy_dist.lower()
-        supported_energy_dists = ['uniform', 'exp']
-        if energy_dist not in supported_energy_dists:
-            raise ValueError(f'{energy_dist=} is not a supported '
-                             f'distribution {supported_energy_dists}.')
+
         with Model() as model:
             # Parameters we ultimately care about
             intercept = Normal("intercept", -10, sigma=50)
@@ -140,14 +147,18 @@ class Bayes_Fit(plot_dispersion.Dispersion):
                 energy = Uniform('energy',
                                 lower=self.energy_range_array[:, 0], 
                                 upper=self.energy_range_array[:, 1],
-                                shape=4
+                                shape=self.energy_range_array.shape[0]
                                 )
             elif energy_dist == 'exp':
                 _energy_spec = self.fit_energy_spectrum()
-                energy = Exponential('energy',
-                                lam=1/_energy_spec['E0'],
-                                shape=4
-                                )
+                energy = Bound(
+                    Exponential('energy', lam=1/_energy_spec['E0'], 
+                                shape=self.energy_range_array.shape[0]),
+                    lower=self.energy_range_array[:, 0], 
+                    upper=self.energy_range_array[:, 1]
+                    )
+            elif energy_dist is None:
+                energy = self.center_energy
             else:
                 raise NotImplementedError
 
