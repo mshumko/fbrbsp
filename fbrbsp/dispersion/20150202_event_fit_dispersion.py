@@ -10,7 +10,7 @@ from fbrbsp.dispersion.fit_dispersion import Bayes_Fit
 
 plot_window_s=1 
 time = '2015-02-02T06:12:26.310000'
-channels = np.arange(5)
+channels = np.arange(6)
 
 fb_id = 3
 catalog_version=5

@@ -2,7 +2,6 @@
 import dateutil.parser
 
 import pymc3 as pm
-from pymc3 import Model, Normal, sample, Uniform, Exponential, Bound
 import matplotlib.pyplot as plt
 import matplotlib.ticker
 import numpy as np
@@ -149,16 +148,16 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         else:
             self.energy_dist = energy_dist.lower()
 
-        with Model() as model:
+        with pm.Model() as model:
             # Parameters we ultimately care about
-            intercept = Normal("intercept", 0, sigma=50)
-            slope = Normal("slope", 0.1, sigma=1)
+            intercept = pm.Normal("intercept", 0, sigma=50)
+            slope = pm.Normal("slope", 0, sigma=1)
 
             # call energy.random(size=...) to generate random values and confirm
             # that they are correctly generated. See 
             # https://www.pymc.io/projects/docs/en/v3/Probability_Distributions.html#using-pymc-distributions-without-a-model
             if self.energy_dist == 'uniform': 
-                energy = Uniform('energy',
+                energy = pm.Uniform('energy',
                                 lower=self.energy_range_array[:, 0], 
                                 upper=self.energy_range_array[:, 1],
                                 shape=self.energy_range_array.shape[0]
@@ -166,7 +165,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             elif self.energy_dist == 'exp':
                 _energy_spec = self.fit_energy_spectrum()
                 # First set of parameters for the Bound, and second set for Exponential.
-                energy = Bound(Exponential,
+                energy = pm.Bound(pm.Exponential,
                     lower=self.energy_range_array[:, 0], 
                     upper=self.energy_range_array[:, 1]
                     )('energy', lam=1/_energy_spec['E0'], 
@@ -176,13 +175,13 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             else:
                 raise NotImplementedError
 
-            likelihood = Normal("y", 
+            likelihood = pm.Normal("y", 
                 mu=intercept + slope * energy, 
                 sigma=self.cadence_ms/2,
                 observed=self.t0_diff_ms)                                
             # cores=1 due to a multiprocessing bug in Windows's pymc3. 
             # See this discussion: https://discourse.pymc.io/t/error-during-run-sampling-method/2522. 
-            self.trace = sample(samples, cores=1, tune=tune)
+            self.trace = pm.sample(samples, cores=1, tune=tune)
         return
     
     def fit_energy_spectrum(self, validate=False):
