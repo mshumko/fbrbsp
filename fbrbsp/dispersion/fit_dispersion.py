@@ -99,8 +99,8 @@ class Bayes_Fit(plot_dispersion.Dispersion):
             self.ax[-1].fill_between(energies, lower_boundary, upper_boundary, color='grey', alpha=0.5)
             self.ax[-1].plot(energies, self.trace['intercept'].mean() + energies*self.trace['slope'].mean(), 'k--')
 
-            quantiles = np.round(np.quantile(self.trace["slope"], [0.025, 0.975]), 3)
-            linear_fit_str = (f'slope = {round(self.trace["slope"].mean(), 3)} [ms/keV]'
+            quantiles = np.round(np.quantile(self.trace["slope"], [0.025, 0.975]), 2)
+            linear_fit_str = (f'slope = {round(self.trace["slope"].mean(), 2)} [ms/keV]'
                 f' | CI = [{quantiles[0]}, {quantiles[1]}]')
             self.ax[-1].text(0.99, 0, linear_fit_str, transform=self.ax[-1].transAxes, 
                         va='bottom', ha='right', color='k', fontsize=13)
@@ -114,7 +114,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         max_abs_lim = 1.1*np.max(np.abs(self.ax[-1].get_ylim()))
         self.ax[-1].set_ylim(-max_abs_lim, max_abs_lim)
         self.ax[-1].axhline(c='k', ls='-')
-        self.ax[-1].set(xlabel='Energy [keV]', ylabel='Peak time delay [ms]\n(ch[N]-ch[0])')
+        self.ax[-1].set(xlabel='Energy [keV]', ylabel=f'Peak time lag [ms]\n$(ch_{{n}}-ch_{{0}})$')
 
         locator=matplotlib.ticker.FixedLocator(np.linspace(-max_abs_lim, max_abs_lim, num=5))
         self.ax[-1].yaxis.set_major_locator(locator)
@@ -152,7 +152,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         with Model() as model:
             # Parameters we ultimately care about
             intercept = Normal("intercept", 0, sigma=50)
-            slope = Normal("slope", 0, sigma=5)
+            slope = Normal("slope", 0.1, sigma=1)
 
             # call energy.random(size=...) to generate random values and confirm
             # that they are correctly generated. See 
@@ -215,30 +215,35 @@ class Bayes_Fit(plot_dispersion.Dispersion):
         return super()._get_dispersion()
 
 
-plot_window_s=1
+if __name__ == '__main__':
+    plot_window_s=1
 
-## Best positive dispersion event so far
-time = '2015-08-27T12:40:37'
-channels = np.arange(4)
+    ## Best positive dispersion event so far
+    # time = '2015-08-27T12:40:37'
+    # channels = np.arange(4)
+
+    ## DAPPER saturation 
+    time = '2015-02-02T06:12:26.310000'
+    channels = np.arange(5)
 
 
-fb_id = 3
-catalog_version=5
-fit_interval_s = 0.3
+    fb_id = 3
+    catalog_version=5
+    fit_interval_s = 0.3
 
-model = Bayes_Fit(fb_id, channels=channels, catalog_version=catalog_version, 
-                fit_interval_s=fit_interval_s, plot_window_s=plot_window_s, 
-                full_ylabels=True)
-model.load(time)
-model.get_dispersion()
-model.fit_dispersion(energy_dist='exp')
-pass
-ax = model.plot()
-ax[-1].set_xlim(200, 800)
-ax[-1].set_ylim(-80, 80)
-loc = matplotlib.ticker.MaxNLocator(7) # this locator puts ticks at regular intervals
-ax[-1].yaxis.set_major_locator(loc)
-plt.show()
-# print(f'{model.t0_diff_ms=}')
-# print(f'{model.center_energy=}')
-pass
+    model = Bayes_Fit(fb_id, channels=channels, catalog_version=catalog_version, 
+                    fit_interval_s=fit_interval_s, plot_window_s=plot_window_s, 
+                    full_ylabels=True)
+    model.load(time)
+    model.get_dispersion()
+    model.fit_dispersion(energy_dist='exp')
+    pass
+    ax = model.plot()
+    ax[-1].set_xlim(200, 1000)
+    ax[-1].set_ylim(-80, 80)
+    loc = matplotlib.ticker.MaxNLocator(7) # this locator puts ticks at regular intervals
+    ax[-1].yaxis.set_major_locator(loc)
+    plt.show()
+    # print(f'{model.t0_diff_ms=}')
+    # print(f'{model.center_energy=}')
+    pass

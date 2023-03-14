@@ -272,8 +272,9 @@ class Dispersion:
             _energy_range_row = energy_range[i].replace(' ', '')
             if '>' in _energy_range_row:
                 # Special case with integral channel.
-                _lower_intergral_energy= f'>{int(float(_energy_range_row[:-3].replace(">", "")))}'
-                energy_range_array[i, :] = [_lower_intergral_energy, np.nan]
+                _lower_intergral_energy= int(float(_energy_range_row[:-3].replace(">", "")))
+                # If memory serves me right, 2 MeV is effective upper bound on the integral energy channel
+                energy_range_array[i, :] = [_lower_intergral_energy, 2000]
             else:
                 # DIfferential channels.
                 energy_range_array[i, :] = np.array(_energy_range_row[:-3].split('-'), dtype=float).astype(int)
