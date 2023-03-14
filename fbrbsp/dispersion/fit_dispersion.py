@@ -151,7 +151,7 @@ class Bayes_Fit(plot_dispersion.Dispersion):
 
         with Model() as model:
             # Parameters we ultimately care about
-            intercept = Normal("intercept", -10, sigma=50)
+            intercept = Normal("intercept", 0, sigma=50)
             slope = Normal("slope", 0, sigma=5)
 
             # call energy.random(size=...) to generate random values and confirm
