@@ -62,8 +62,6 @@ for i, conjunction in conjunctions.iterrows():
         conjunctions.loc[i, 'microbursts_std'] = np.std(microburst_dt)
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-ax[0].axis('equal')
-ax[1].axis('equal')
 ax[0].scatter(conjunctions['n_chorus'], conjunctions['n_microbursts'])
 ax[0].plot(np.linspace(*ax[0].get_xlim()), np.linspace(*ax[0].get_xlim()))
 ax[0].set_xlabel('n_chorus')
@@ -80,6 +78,7 @@ plt.tight_layout()
 for ax_i in ax:
     ax_i.set_xlim(0, None)
     ax_i.set_ylim(0, None)
-    
+    # ax_i.axis('equal')
+
 plt.show()
 pass
