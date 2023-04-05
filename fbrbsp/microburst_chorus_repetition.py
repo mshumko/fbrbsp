@@ -33,7 +33,7 @@ microburst_path = fbrbsp.config['here'].parent / 'data' / microburst_name
 microbursts = pd.read_csv(microburst_path)
 microbursts['Time'] = pd.to_datetime(microbursts['Time'])
 
-conjunctions['microbursts'] = np.nan
+conjunctions['n_microbursts'] = np.nan
 conjunctions['mean_microburst_repetition'] = np.nan
 conjunctions['microbursts_std'] = np.nan
 
@@ -43,7 +43,7 @@ for i, conjunction in conjunctions.iterrows():
         (microbursts['Time'] > conjunction['start_time']-dt) & 
         (microbursts['Time'] <= conjunction['end_time']+dt)
         )[0]
-    conjunctions.loc[i, 'microbursts'] = microburst_idx.shape[0]
+    conjunctions.loc[i, 'n_microbursts'] = microburst_idx.shape[0]
 
     # Load FIREBIRD data to calculate how long FIREBIRD took hr data in 
     # between (conjunction['start_time']-dt, conjunction['start_time']+dt).
@@ -53,18 +53,18 @@ for i, conjunction in conjunctions.iterrows():
         (hr['Time'] <= conjunction['end_time']+dt)
         )[0]
     total_seconds = (hr['Time'][hr_idx[-1]]-hr['Time'][hr_idx[0]]).total_seconds()
-    conjunctions.loc[i, 'mean_microburst_repetition'] = conjunctions.loc[i, 'microbursts']/total_seconds
+    conjunctions.loc[i, 'mean_microburst_repetition'] = conjunctions.loc[i, 'n_microbursts']/total_seconds
 
     filtered_microburst_times = microbursts.loc[microburst_idx, 'Time']
-    if conjunctions.loc[i, 'microbursts']:
+    if conjunctions.loc[i, 'n_microbursts']:
         microburst_dt = [(t_next-t_current).total_seconds() for t_current, t_next in 
                          zip(filtered_microburst_times.iloc[:-1], filtered_microburst_times.iloc[1:])]
         conjunctions.loc[i, 'microbursts_std'] = np.std(microburst_dt)
 
 fig, ax = plt.subplots()
 # ax.axis('equal')
-ax.scatter(conjunctions['mean_chorus_repetition'], conjunctions['mean_microburst_repetition'])
-ax.set_xlabel('mean_chorus_repetition')
-ax.set_ylabel('mean_microburst_repetition')
+ax.scatter(conjunctions['n_chorus'], conjunctions['n_microbursts'])
+ax.set_xlabel('n_chorus')
+ax.set_ylabel('n_microbursts')
 plt.show()
 pass
