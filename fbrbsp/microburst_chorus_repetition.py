@@ -10,6 +10,7 @@ import fbrbsp
 import fbrbsp.load.firebird
 
 
+debug = False
 fb_id = 3
 rbsp_id = 'a'
 dL = 1
@@ -18,10 +19,6 @@ microburst_version = 5
 fb_time_window_sec = 2*60
 dt = pd.Timedelta(seconds=fb_time_window_sec)
 
-# conjunction_name = (
-#     f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_'
-#     f'dL{str(dL*10).zfill(2)}_dMLT{str(dMLT*10).zfill(2)}_final_hr.csv'
-#     )
 conjunction_name = f'c_rp_FU{fb_id}_RBSP{rbsp_id.upper()}.csv'
 conjunction_path = fbrbsp.config['here'].parent / 'data' / conjunction_name
 conjunctions = pd.read_csv(conjunction_path)
@@ -55,6 +52,22 @@ for i, conjunction in conjunctions.iterrows():
     total_seconds = (hr['Time'][hr_idx[-1]]-hr['Time'][hr_idx[0]]).total_seconds()
     conjunctions.loc[i, 'mean_microburst_repetition'] = conjunctions.loc[i, 'n_microbursts']/total_seconds
 
+    if debug and conjunctions.loc[i, 'n_microbursts'] > 55:
+        fig, ax = plt.subplots()
+        for ch, ch_label in enumerate(hr.attrs['Col_counts']['ENERGY_RANGES']): 
+            ax.plot(hr['Time'], hr['Col_counts'][:, ch], label=ch_label)
+        
+        for idx in microburst_idx:
+            ax.axvline(microbursts['Time'][idx], c='k')
+
+        plt.legend()
+        ax.set_xlabel('Time')
+        ax.set_ylabel(f'Col counts\ncounts/{1000*hr.attrs["CADENCE"]} ms')
+        ax.set_title(f'FU{fb_id} | {conjunction["start_time"].date()}')
+        ax.set_yscale('log')
+        ax.set_xlim((conjunction['start_time'], conjunction['end_time']))
+        plt.show()
+
     filtered_microburst_times = microbursts.loc[microburst_idx, 'Time']
     if conjunctions.loc[i, 'n_microbursts']:
         microburst_dt = [(t_next-t_current).total_seconds() for t_current, t_next in 
@@ -63,12 +76,12 @@ for i, conjunction in conjunctions.iterrows():
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 ax[0].scatter(conjunctions['n_chorus'], conjunctions['n_microbursts'])
-ax[0].plot(np.linspace(*ax[0].get_xlim()), np.linspace(*ax[0].get_xlim()))
+ax[0].plot(np.linspace(0, ax[0].get_xlim()[1]), np.linspace(0, ax[0].get_xlim()[1]))
 ax[0].set_xlabel('n_chorus')
 ax[0].set_ylabel('n_microbursts')
 
 ax[1].scatter(conjunctions['mean_chorus_repetition'], conjunctions['mean_microburst_repetition'])
-ax[1].plot(np.linspace(*ax[1].get_xlim()), np.linspace(*ax[1].get_xlim()))
+ax[1].plot(np.linspace(0, ax[1].get_xlim()[1]), np.linspace(0, ax[1].get_xlim()[1]))
 ax[1].set_xlabel('mean_chorus_repetition')
 ax[1].set_ylabel('mean_microburst_repetition')
 
