@@ -61,14 +61,25 @@ for i, conjunction in conjunctions.iterrows():
                          zip(filtered_microburst_times.iloc[:-1], filtered_microburst_times.iloc[1:])]
         conjunctions.loc[i, 'microbursts_std'] = np.std(microburst_dt)
 
-fig, ax = plt.subplots(2, figsize=(8, 5))
-# ax.axis('equal')
+fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+ax[0].axis('equal')
+ax[1].axis('equal')
 ax[0].scatter(conjunctions['n_chorus'], conjunctions['n_microbursts'])
+ax[0].plot(np.linspace(*ax[0].get_xlim()), np.linspace(*ax[0].get_xlim()))
 ax[0].set_xlabel('n_chorus')
 ax[0].set_ylabel('n_microbursts')
+
 ax[1].scatter(conjunctions['mean_chorus_repetition'], conjunctions['mean_microburst_repetition'])
+ax[1].plot(np.linspace(*ax[1].get_xlim()), np.linspace(*ax[1].get_xlim()))
 ax[1].set_xlabel('mean_chorus_repetition')
 ax[1].set_ylabel('mean_microburst_repetition')
+
+plt.suptitle(f'Chorus-Microburst repetition rate | FU-{fb_id} | RBSP-{rbsp_id.upper()}')
 plt.tight_layout()
+
+for ax_i in ax:
+    ax_i.set_xlim(0, None)
+    ax_i.set_ylim(0, None)
+    
 plt.show()
 pass
