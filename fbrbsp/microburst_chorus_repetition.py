@@ -46,10 +46,10 @@ for i, conjunction in conjunctions.iterrows():
         continue
 
     filtered_microburst_times = microbursts.loc[microburst_idx, 'Time']
-    dt = filtered_microburst_times.diff().dt.total_seconds()
-    conjunctions.loc[i, 'mean_microburst_repetition'] = dt.mean()
-    conjunctions.loc[i, 'median_microburst_repetition'] = dt.median()
-    conjunctions.loc[i, 'std_microburst_repetition'] = dt.std()
+    microburst_dt = filtered_microburst_times.diff().dt.total_seconds()
+    conjunctions.loc[i, 'mean_microburst_repetition'] = microburst_dt.mean()
+    conjunctions.loc[i, 'median_microburst_repetition'] = microburst_dt.median()
+    conjunctions.loc[i, 'std_microburst_repetition'] = microburst_dt.std()
 
 fig, ax = plt.subplots(1, 2, figsize=(10, 5))
 ax[0].scatter(conjunctions['n_chorus'], conjunctions['n_microbursts'])
