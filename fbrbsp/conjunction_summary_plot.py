@@ -154,8 +154,16 @@ class Summary:
         fb_mlt = self.hr['MLT'][hr_idx]
         fb_L = self.hr['McIlwainL'][hr_idx]
 
-        ax.plot((2*np.pi/24)*fb_mlt, fb_L)
-
+        rb_idx = np.where(
+            (self.rbsp_magephem['epoch']>time_range[0]) & 
+            (self.rbsp_magephem['epoch']<=time_range[1])
+            )[0]
+        ida = np.where(self.rbsp_xlabels['L'].upper() == self.rbsp_magephem['L_Label'])[0]
+        rb_mlt = self.rbsp_magephem[self.rbsp_xlabels['MLT']][rb_idx]
+        rb_L = self.rbsp_magephem['L'][rb_idx, ida]
+        
+        ax.plot((2*np.pi/24)*fb_mlt, fb_L, 'k')
+        ax.plot((2*np.pi/24)*rb_mlt, rb_L, marker='+', color='k')
         return
     
     def _rbsp_magephem_labels(self, time_range, _ax):
