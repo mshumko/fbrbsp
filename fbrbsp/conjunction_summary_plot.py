@@ -38,7 +38,7 @@ class Summary:
             print(f'Created plotting directory at {self.save_path}')
         pass
 
-    def loop(self, zoom_pad_min=5, inspect=True):
+    def loop(self, zoom_pad_min=5, inspect=False):
         """
         The main method to create summary plots.
         """
