@@ -70,7 +70,7 @@ class Summary:
     def _init_plot(self):
         self.n_rows = 3
         self.n_cols = 3
-        self.fig = plt.figure(constrained_layout=False, figsize=(12, 10))
+        self.fig = plt.figure(constrained_layout=False, figsize=(12, 8))
         spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
         self.ax = np.zeros(self.n_rows, dtype=object)
         for i in range(self.n_rows):
