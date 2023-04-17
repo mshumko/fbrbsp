@@ -12,6 +12,7 @@ import fbrbsp
 from fbrbsp.load.firebird import Hires
 from fbrbsp.load.emfisis import Spec, Burst
 from fbrbsp.load.rbsp_magephem import MagEphem
+from fbrbsp.dial import Dial
 
 
 class Summary:
@@ -49,8 +50,8 @@ class Summary:
             self._rbsp_magephem_labels(time_range, self.ax[1])
             self._plot_magnetic_field(self.ax[0], time_range)
             self._plot_electric_field(self.ax[1], time_range)
-
             self._plot_firebird(self.ax[-1], time_range)
+            self._plot_orbit(self.bx, time_range)
 
             self._plot_labels(time_range[0])
 
@@ -131,6 +132,32 @@ class Summary:
         )
         return
 
+    def _plot_orbit(self, ax, time_range, L_labels=[2,4,6,8]):
+        """
+        Make an orbit dial plot
+        """
+        self._dial = Dial(ax, None, None, None)
+        self._dial.L_labels = L_labels
+        # Turn off the grid to prevent a matplotlib deprecation warning 
+        # (see https://matplotlib.org/3.5.1/api/prev_api_changes/api_changes_3.5.0.html#auto-removal-of-grids-by-pcolor-and-pcolormesh)
+        ax.grid(False) 
+        self._dial.draw_earth()
+        self._dial._plot_params()
+
+        if not hasattr(self, 'hr'):
+            raise ValueError('Need to call the _plot_firebird() method first.')
+        
+        hr_idx = np.where(
+            (self.hr['Time']>time_range[0]) & 
+            (self.hr['Time']<=time_range[1])
+            )[0]
+        fb_mlt = self.hr['MLT'][hr_idx]
+        fb_L = self.hr['McIlwainL'][hr_idx]
+
+        ax.plot((2*np.pi/24)*fb_mlt, fb_L)
+
+        return
+    
     def _rbsp_magephem_labels(self, time_range, _ax):
         self.rbsp_magephem = MagEphem(self.rbsp_id, 't89d', time_range)
         self.rbsp_magephem.load()
@@ -175,9 +202,9 @@ class Summary:
         return "\n".join(tick_list)
 
     def _plot_firebird(self, ax, time_range):
-        hr = Hires(self.fb_id, time_range[0]).load()
+        self.hr = Hires(self.fb_id, time_range[0]).load()
         for i in range(6):
-            ax.plot(hr['Time'], hr['Col_counts'][:, i])
+            ax.plot(self.hr['Time'], self.hr['Col_counts'][:, i])
         ax.set_xlim(time_range)
         ax.set_yscale('log')
         return
