@@ -138,7 +138,7 @@ class Summary:
         )
         return
 
-    def _plot_orbit(self, ax, time_range, L_labels=[2,4,6,8]):
+    def _plot_orbit(self, ax, time_range, L_labels=[2,4,6,8], max_L=10):
         """
         Make an orbit dial plot.
         """
@@ -155,7 +155,8 @@ class Summary:
         
         hr_idx = np.where(
             (self.hr['Time']>time_range[0]) & 
-            (self.hr['Time']<=time_range[1])
+            (self.hr['Time']<=time_range[1]) &
+            (self.hr['McIlwainL'] < max_L)
             )[0]
         fb_mlt = self.hr['MLT'][hr_idx]
         fb_L = self.hr['McIlwainL'][hr_idx]
