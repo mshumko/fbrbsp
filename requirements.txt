@@ -6,7 +6,7 @@ numpy
 pandas
 sampex
 cdflib
-bumpversion
+bump2version
 scipy
 scikit-learn
 
