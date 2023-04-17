@@ -134,7 +134,7 @@ class Summary:
 
     def _plot_orbit(self, ax, time_range, L_labels=[2,4,6,8]):
         """
-        Make an orbit dial plot
+        Make an orbit dial plot.
         """
         self._dial = Dial(ax, None, None, None)
         self._dial.L_labels = L_labels
@@ -163,7 +163,7 @@ class Summary:
         rb_L = self.rbsp_magephem['L'][rb_idx, ida]
         
         ax.plot((2*np.pi/24)*fb_mlt, fb_L, 'k')
-        ax.plot((2*np.pi/24)*rb_mlt, rb_L, marker='+', color='k')
+        ax.plot((2*np.pi/24)*rb_mlt, rb_L, marker='X', color='r')
         return
     
     def _rbsp_magephem_labels(self, time_range, _ax):
