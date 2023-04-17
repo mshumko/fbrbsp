@@ -16,13 +16,16 @@ from fbrbsp.dial import Dial
 
 
 class Summary:
-    def __init__(self, fb_id, fbsp_id, file_name, rbsp_xlabels=None) -> None:
+    def __init__(self, fb_id, fbsp_id, file_name, rbsp_xlabels=None, fb_xlabels=None) -> None:
         self.fb_id = fb_id 
         self.rbsp_id = fbsp_id
         self.file_name = file_name
         self.rbsp_xlabels = rbsp_xlabels
+        self.fb_xlabels = fb_xlabels
         if self.rbsp_xlabels is None:
             self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT"}
+        if self.fb_xlabels is None:
+            self.fb_xlabels = {"L": "McIlwainL", "MLT": "MLT"}
 
         self.catalog_path = fbrbsp.config['here'].parent / 'data' / file_name
         self.catalog = pd.read_csv(self.catalog_path)
@@ -46,14 +49,17 @@ class Summary:
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
+            self.rbsp_magephem = MagEphem(self.rbsp_id, 't89d', time_range)
+            self.rbsp_magephem.load()
 
-            self._rbsp_magephem_labels(time_range, self.ax[1])
             self._plot_magnetic_field(self.ax[0], time_range)
             self._plot_electric_field(self.ax[1], time_range)
             self._plot_firebird(self.ax[-1], time_range)
             self._plot_orbit(self.bx, time_range)
 
             self._plot_labels(time_range[0])
+            self._rbsp_magephem_labels(self.ax[1], time_range)
+            self._fb_magephem_labels(self.ax[-1], time_range)
 
             if inspect:
                 plt.show()
@@ -166,10 +172,7 @@ class Summary:
         ax.plot((2*np.pi/24)*rb_mlt, rb_L, marker='X', color='r')
         return
     
-    def _rbsp_magephem_labels(self, time_range, _ax):
-        self.rbsp_magephem = MagEphem(self.rbsp_id, 't89d', time_range)
-        self.rbsp_magephem.load()
-
+    def _rbsp_magephem_labels(self, _ax, time_range):
         _ax.xaxis.set_major_formatter(FuncFormatter(self.format_rbsp_xaxis))
         _ax.set_xlabel("\n".join(["Time"] + list(self.rbsp_xlabels.keys())))
         _ax.xaxis.set_label_coords(-0.1, -0.06)
@@ -207,6 +210,37 @@ class Summary:
         # Cast np.array as strings so that it can insert the time string.
         tick_list = np.insert(tick_list, 0, 
             self.rbsp_magephem['epoch'][i_min_time].strftime("%H:%M:%S"))
+        return "\n".join(tick_list)
+
+    def _fb_magephem_labels(self, _ax, time_range):
+        _ax.xaxis.set_major_formatter(FuncFormatter(self.format_fb_xaxis))
+        _ax.set_xlabel("\n".join(["Time"] + list(self.fb_xlabels.keys())))
+        _ax.xaxis.set_label_coords(-0.1, -0.06)
+
+        _ax.format_coord = lambda x, y: "{}, {}".format(
+            matplotlib.dates.num2date(x).replace(tzinfo=None).isoformat(), round(y)
+        )
+        return
+
+    def format_fb_xaxis(self, tick_val, tick_pos):
+        """
+        The tick magic happens here. pyplot gives it a tick time, and this function 
+        returns the closest label to that time. Read docs for FuncFormatter().
+        """
+        # Find the nearest time within 1 second.
+        tick_time = matplotlib.dates.num2date(tick_val).replace(tzinfo=None)
+        i_min_time = np.argmin(np.abs(self.hr['Time'] - tick_time))
+        if np.abs(self.hr['Time'][i_min_time] - tick_time).total_seconds() > 1:
+            return tick_time.strftime("%H:%M:%S")
+
+        # Construct the tick
+        tick_list = []
+        for val in self.fb_xlabels.values():
+            tick_list.append(self.hr[val][i_min_time].round(2).astype(str))
+            
+        # Cast np.array as strings so that it can insert the time string.
+        tick_list = np.insert(tick_list, 0, 
+            self.hr['Time'][i_min_time].strftime("%H:%M:%S"))
         return "\n".join(tick_list)
 
     def _plot_firebird(self, ax, time_range):
