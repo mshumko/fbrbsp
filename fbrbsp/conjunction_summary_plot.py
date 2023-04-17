@@ -34,41 +34,36 @@ class Summary:
             print(f'Created plotting directory at {self.save_path}')
         pass
 
-    def loop(self, survey_pad_min=60, zoom_pad_min=1):
-        # self._init_plot()
-
+    def loop(self, zoom_pad_min=5, inspect=True):
+        """
+        The main method to create summary plots.
+        """
         for i, (start_time, end_time) in enumerate(zip(self.catalog['startTime'], self.catalog['endTime'])):
             print(f'Processing conjunction: {start_time.isoformat()} ({i}/{self.catalog.shape[0]})')
             self._init_plot()
-            survey_time_range = (
-                start_time-timedelta(minutes=survey_pad_min/2),
-                end_time+timedelta(minutes=survey_pad_min/2)
-            )
-            zoom_time_range = (
+            time_range = (
                 start_time-timedelta(minutes=zoom_pad_min/2),
                 end_time+timedelta(minutes=zoom_pad_min/2)
             )
 
-            self._rbsp_magephem_labels(survey_time_range, self.ax[1,0])
+            self._rbsp_magephem_labels(time_range, self.ax[1])
+            self._plot_magnetic_field(self.ax[0], time_range)
+            self._plot_electric_field(self.ax[1], time_range)
 
-            self._plot_magnetic_field(self.ax[0,0], self.ax[0,1], 
-                survey_time_range, zoom_time_range
-                )
-            self._plot_electric_field(self.ax[1,0], self.ax[1,1], 
-                survey_time_range, zoom_time_range
-                )
-            self._plot_firebird(self.ax[-1,1], zoom_time_range)
+            self._plot_firebird(self.ax[-1], time_range)
 
-            self._plot_labels(zoom_time_range[0])
-            # plt.show()
+            self._plot_labels(time_range[0])
+
+            if inspect:
+                plt.show()
+                continue
 
             save_name = (
-                f'{start_time:%Y%m%d_%H%M%S}_{end_time:%H%M%S}_RBSP{self.rbsp_id.upper()}'
-                f'_FB{self.fb_id}_conjunction_summary.png'
+                f'{start_time:%Y%m%d_%H%M%S}_{end_time:%H%M%S}_rbsp{self.rbsp_id.lower()}'
+                f'_fb{self.fb_id}_conjunction_summary.png'
                 )
             plt.subplots_adjust(hspace=0.795)
             plt.savefig(self.save_path / save_name)
-            # self._clear_plot()
             plt.close()
         return
 
@@ -77,35 +72,31 @@ class Summary:
         self.n_cols = 3
         self.fig = plt.figure(constrained_layout=False, figsize=(12, 10))
         spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
-        self.ax = np.zeros((self.n_rows, self.n_cols), dtype=object)
+        self.ax = np.zeros(self.n_rows, dtype=object)
         for i in range(self.n_rows):
-            for j in range(self.n_cols):
-                self.ax[i,j] = self.fig.add_subplot(spec[i, j])
+            self.ax[i] = self.fig.add_subplot(spec[i, :-1])  # Count & wave data
+        self.bx = self.fig.add_subplot(spec[:, -1], projection='polar')  # Polar L-MLT plot.
         return
     
     def _plot_labels(self, date):
-        plt.suptitle(
-            f'{date:%F} RBSP{self.rbsp_id.upper()} - FU{self.fb_id}\n'
-            f'conjunction summary'
-            )
-        self.ax[0,0].set_ylabel('Frequency')
-        self.ax[1,0].set_ylabel('Frequency')
-        self.ax[-1,1].set_ylabel('Collimated\n[counts]')
-        self.ax[0,0].text(0, 0.99, 'EMFISIS WFR spectra', va='top', fontsize=15,
-            c='g', transform=self.ax[0,0].transAxes)
-        self.ax[1,0].text(0, 0.99, 'EFW spectra', va='top', fontsize=15,
-            c='g', transform=self.ax[1,0].transAxes)
-        self.ax[0,1].text(0, 0.99, 'EMFISIS WFR burst', va='top', fontsize=15,
-            c='g', transform=self.ax[0,1].transAxes)
-        self.ax[1,1].text(0, 0.99, 'EFW mscb1', va='top', fontsize=15,
-            c='g', transform=self.ax[1,1].transAxes)
-        self.ax[-1,1].text(0, 0.99, 'FIREBIRD', va='top', fontsize=15,
-            c='g', transform=self.ax[-1,1].transAxes)
+        plt.suptitle(f'{date:%F} RBSP{self.rbsp_id.upper()} - FU{self.fb_id} conjunction')
+        self.ax[0].set_ylabel('Frequency')
+        self.ax[1].set_ylabel('Frequency')
+        self.ax[-1].set_ylabel('Collimated\n[counts]')
+
+        self.ax[0].text(0, 0.99, 'EMFISIS WFR B spectra', va='top', fontsize=15,
+            c='g', transform=self.ax[0].transAxes)
+        self.ax[1].text(0, 0.99, 'EMFISIS WFR E spectra', va='top', fontsize=15,
+            c='g', transform=self.ax[1].transAxes)
+        self.ax[-1].text(0, 0.99, f'FIREBIRD Flight Unit {self.fb_id}', va='top', fontsize=15,
+            c='g', transform=self.ax[-1].transAxes)
         return
 
-    def _plot_magnetic_field(self, ax, bx, survey_time_range, zoom_time_range):
-
-        emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
+    def _plot_magnetic_field(self, ax, time_range):
+        """
+        Plot the magnetic field spectrum.
+        """
+        emfisis_spec = Spec(self.rbsp_id, 'WFR', time_range)
         emfisis_spec.load()
         plot_fce = True
         try:
@@ -120,35 +111,10 @@ class Summary:
             np.min(emfisis_spec.WFR_frequencies), 
             np.max(emfisis_spec.WFR_frequencies)
         )
-
-        emfisis_burst = Burst(self.rbsp_id, 'WFR', zoom_time_range)
-        try:
-            emfisis_burst.load()
-        except (FileNotFoundError, ValueError) as err:
-            if 'does not contain any hyper references' in str(err):
-                return
-            elif 'The EMFISIS burst data is incomplete.' in str(err):
-                return
-            else:
-                raise
-        try:
-            emfisis_burst.spectrum(ax=bx, fce=plot_fce, 
-                pcolormesh_kwargs={'norm':matplotlib.colors.LogNorm(vmin=1E-4, vmax=1E-3)})
-        except ValueError as err:
-            if 'No burst data' in str(err):
-                return
-            else:
-                raise
-        
-        bx.set_ylim(
-            np.min(emfisis_spec.WFR_frequencies), 
-            np.max(emfisis_spec.WFR_frequencies)
-        )
-        bx.set_xlim(zoom_time_range)
         return
 
-    def _plot_electric_field(self, ax, bx, survey_time_range, zoom_time_range):
-        emfisis_spec = Spec(self.rbsp_id, 'WFR', survey_time_range)
+    def _plot_electric_field(self, ax, time_range):
+        emfisis_spec = Spec(self.rbsp_id, 'WFR', time_range)
         emfisis_spec.load()
         plot_fce = True
         try:
@@ -208,11 +174,11 @@ class Summary:
             self.rbsp_magephem['epoch'][i_min_time].strftime("%H:%M:%S"))
         return "\n".join(tick_list)
 
-    def _plot_firebird(self, ax, zoom_time_range):
-        hr = Hires(self.fb_id, zoom_time_range[0]).load()
+    def _plot_firebird(self, ax, time_range):
+        hr = Hires(self.fb_id, time_range[0]).load()
         for i in range(6):
             ax.plot(hr['Time'], hr['Col_counts'][:, i])
-        ax.set_xlim(zoom_time_range)
+        ax.set_xlim(time_range)
         ax.set_yscale('log')
         return
 
@@ -223,8 +189,6 @@ class Summary:
         return
         
 if __name__ == '__main__':
-    fb_id = 3
-    rbsp_id = 'A'
     for fb_id in [3, 4]:
         for rbsp_id in ['A', 'B']:
             file_name = f'FU{fb_id}_RBSP{rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
