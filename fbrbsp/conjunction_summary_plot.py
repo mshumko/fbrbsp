@@ -88,7 +88,9 @@ class Summary:
     def _plot_labels(self, date):
         plt.suptitle(f'{date:%F} RBSP{self.rbsp_id.upper()} - FU{self.fb_id} conjunction')
         self.ax[0].set_ylabel('Frequency')
+        self.ax[0].set_yscale('log')
         self.ax[1].set_ylabel('Frequency')
+        self.ax[1].set_yscale('log')
         self.ax[-1].set_ylabel('Collimated\n[counts]')
 
         self.ax[0].text(0, 0.99, 'EMFISIS WFR B spectra', va='top', fontsize=15,
