@@ -43,7 +43,8 @@ class Summary:
         The main method to create summary plots.
         """
         for i, (start_time, end_time) in enumerate(zip(self.catalog['startTime'], self.catalog['endTime'])):
-            print(f'Processing conjunction: {start_time.isoformat()} ({i}/{self.catalog.shape[0]})')
+            print(f'Processing RBSP{self.rbsp_id}-FU{self.fb_id} conjunction: '
+                  f'{start_time.isoformat()} ({i}/{self.catalog.shape[0]})')
             self._init_plot()
             time_range = (
                 start_time-timedelta(minutes=zoom_pad_min/2),
