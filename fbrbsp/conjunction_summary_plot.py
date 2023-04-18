@@ -23,9 +23,9 @@ class Summary:
         self.rbsp_xlabels = rbsp_xlabels
         self.fb_xlabels = fb_xlabels
         if self.rbsp_xlabels is None:
-            self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT"}
+            self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT", f'$\lambda$':'MLAT'}
         if self.fb_xlabels is None:
-            self.fb_xlabels = {"L": "McIlwainL", "MLT": "MLT"}
+            self.fb_xlabels = {"L": "McIlwainL", "MLT": "MLT", 'Lat': 'Lat', 'Lon':'Lon'}
 
         self.catalog_path = fbrbsp.config['here'].parent / 'data' / file_name
         self.catalog = pd.read_csv(self.catalog_path)
@@ -38,7 +38,7 @@ class Summary:
             print(f'Created plotting directory at {self.save_path}')
         pass
 
-    def loop(self, zoom_pad_min=5, inspect=False):
+    def loop(self, zoom_pad_min=5, inspect=True):
         """
         The main method to create summary plots.
         """
@@ -95,11 +95,11 @@ class Summary:
         self.ax[-1].set_ylabel('Collimated\n[counts]')
 
         self.ax[0].text(0, 0.99, 'EMFISIS WFR B spectra', va='top', fontsize=15,
-            c='g', transform=self.ax[0].transAxes)
+            c='w', transform=self.ax[0].transAxes)
         self.ax[1].text(0, 0.99, 'EMFISIS WFR E spectra', va='top', fontsize=15,
-            c='g', transform=self.ax[1].transAxes)
+            c='w', transform=self.ax[1].transAxes)
         self.ax[-1].text(0, 0.99, f'FIREBIRD Flight Unit {self.fb_id}', va='top', fontsize=15,
-            c='g', transform=self.ax[-1].transAxes)
+            c='k', transform=self.ax[-1].transAxes)
         return
 
     def _plot_magnetic_field(self, ax, time_range):
