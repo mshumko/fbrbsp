@@ -142,7 +142,8 @@ class Spec:
             mag_data.load()
             _fce = mag_data.fce()
             for scaling, ls in zip([1, 0.5, 0.1], ['-', '--', ':']):
-                ax.plot(mag_data['Epoch'][::100], scaling*_fce[::100], c='w', ls=ls)
+                ax.plot(mag_data['Epoch'][::100], scaling*_fce[::100], c='w', ls=ls, 
+                        label=f'{scaling} $\\Omega_{{ce}}$')
         return p, ax
 
     def _find_file(self, file_date):

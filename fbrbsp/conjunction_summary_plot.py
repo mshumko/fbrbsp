@@ -25,7 +25,7 @@ class Summary:
         if self.rbsp_xlabels is None:
             self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT", f'$\\lambda$ [deg]':'EDMAG_MLAT'}
         if self.fb_xlabels is None:
-            self.fb_xlabels = {"L": "McIlwainL", "MLT": "MLT", 'Lat': 'Lat', 'Lon':'Lon'}
+            self.fb_xlabels = {"L": "McIlwainL", "MLT": "MLT", 'Lat [deg]': 'Lat', 'Lon [deg]':'Lon'}
 
         self.catalog_path = fbrbsp.config['here'].parent / 'data' / file_name
         self.catalog = pd.read_csv(self.catalog_path)
@@ -38,7 +38,7 @@ class Summary:
             print(f'Created plotting directory at {self.save_path}')
         pass
 
-    def loop(self, zoom_pad_min=5, inspect=True):
+    def loop(self, zoom_pad_min=5, inspect=False):
         """
         The main method to create summary plots.
         """
@@ -84,7 +84,7 @@ class Summary:
         n_total_subplots = n_rbsp_subplots + n_fb_subplots
         outer_gridspec = gridspec.GridSpec(2, 4, 
             height_ratios=[n_rbsp_subplots/n_total_subplots, n_fb_subplots/n_total_subplots], 
-            top=0.94, left=0.1, right=0.958, bottom=0.13, hspace=0.25) 
+            top=0.94, left=0.1, right=0.958, bottom=0.13, hspace=0.27) 
         inner_gs1 = gridspec.GridSpecFromSubplotSpec(n_rbsp_subplots, 1, subplot_spec=outer_gridspec[0, :-1], hspace=0.05)
         inner_gs2 = gridspec.GridSpecFromSubplotSpec(n_fb_subplots, 1, subplot_spec=outer_gridspec[1, :-1])
 
@@ -96,13 +96,6 @@ class Summary:
             else:
                 self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0], sharex=self.ax[0])
         self.ax[-1] = self.fig.add_subplot(inner_gs2[0])
-        # self.n_rows = 3
-        # self.n_cols = 3
-        # self.fig = plt.figure(constrained_layout=False, figsize=(12, 8))
-        # spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
-        # self.ax = np.zeros(self.n_rows, dtype=object)
-        # for i in range(self.n_rows):
-        #     self.ax[i] = self.fig.add_subplot(spec[i, :-1])  # Count & wave data
         self.bx = self.fig.add_subplot(outer_gridspec[:, -1], projection='polar')  # Polar L-MLT plot.
         return
     
@@ -131,6 +124,7 @@ class Summary:
         plot_fce = True
         try:
             emfisis_spec.spectrum(ax=ax)
+            ax.legend(loc='lower right', fontsize='small', facecolor='grey', labelcolor='w')
         except ValueError as err: 
             if "Variable name 'Magnitude' not found." in str(err):
                 plot_fce = False
@@ -270,7 +264,8 @@ class Summary:
     def _plot_firebird(self, ax, time_range):
         self.hr = Hires(self.fb_id, time_range[0]).load()
         for i in range(6):
-            ax.plot(self.hr['Time'], self.hr['Col_counts'][:, i])
+            ax.plot(self.hr['Time'], self.hr['Col_counts'][:, i], 
+                    label=self.hr.attrs['Col_counts']['ENERGY_RANGES'][i])
         ax.set_xlim(time_range)
         ax.set_yscale('log')
         hr_idx = np.where(
@@ -280,6 +275,7 @@ class Summary:
         time_correction = round(self.hr["Count_Time_Correction"][hr_idx].mean())
         ax.text(0.99, 0.99, f'Time correction={time_correction} s', va='top', ha='right', 
             c='k', transform=ax.transAxes)
+        ax.legend(loc='lower right', fontsize='small')
         return
 
     def _clear_plot(self):
