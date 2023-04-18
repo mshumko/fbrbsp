@@ -23,7 +23,7 @@ class Summary:
         self.rbsp_xlabels = rbsp_xlabels
         self.fb_xlabels = fb_xlabels
         if self.rbsp_xlabels is None:
-            self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT", f'$\lambda$':'MLAT'}
+            self.rbsp_xlabels = {"L": "L_90", "MLT": "EDMAG_MLT", f'$\\lambda$ [deg]':'EDMAG_MLAT'}
         if self.fb_xlabels is None:
             self.fb_xlabels = {"L": "McIlwainL", "MLT": "MLT", 'Lat': 'Lat', 'Lon':'Lon'}
 
@@ -75,15 +75,35 @@ class Summary:
             plt.close()
         return
 
-    def _init_plot(self):
-        self.n_rows = 3
-        self.n_cols = 3
-        self.fig = plt.figure(constrained_layout=False, figsize=(12, 8))
-        spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
-        self.ax = np.zeros(self.n_rows, dtype=object)
-        for i in range(self.n_rows):
-            self.ax[i] = self.fig.add_subplot(spec[i, :-1])  # Count & wave data
-        self.bx = self.fig.add_subplot(spec[:, -1], projection='polar')  # Polar L-MLT plot.
+    def _init_plot(self, n_rbsp_subplots=2, n_fb_subplots=1):
+        if n_fb_subplots != 1:
+            raise NotImplementedError
+        # I want to adjust the hspace for the HiRes line subplots and the dispersion 
+        # subplot separately so I created multiple nested gridspecs.
+        # See https://stackoverflow.com/a/31485288 for inspiration
+        n_total_subplots = n_rbsp_subplots + n_fb_subplots
+        outer_gridspec = gridspec.GridSpec(2, 4, 
+            height_ratios=[n_rbsp_subplots/n_total_subplots, n_fb_subplots/n_total_subplots], 
+            top=0.94, left=0.1, right=0.958, bottom=0.13, hspace=0.25) 
+        inner_gs1 = gridspec.GridSpecFromSubplotSpec(n_rbsp_subplots, 1, subplot_spec=outer_gridspec[0, :-1], hspace=0.05)
+        inner_gs2 = gridspec.GridSpecFromSubplotSpec(n_fb_subplots, 1, subplot_spec=outer_gridspec[1, :-1])
+
+        self.fig = plt.figure(figsize=(12, 8))
+        self.ax = [None]*n_total_subplots
+        for i in range(n_rbsp_subplots):
+            if i == 0:
+                self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0])
+            else:
+                self.ax[i] = self.fig.add_subplot(inner_gs1[i, 0], sharex=self.ax[0])
+        self.ax[-1] = self.fig.add_subplot(inner_gs2[0])
+        # self.n_rows = 3
+        # self.n_cols = 3
+        # self.fig = plt.figure(constrained_layout=False, figsize=(12, 8))
+        # spec = gridspec.GridSpec(nrows=self.n_rows, ncols=self.n_cols, figure=self.fig)
+        # self.ax = np.zeros(self.n_rows, dtype=object)
+        # for i in range(self.n_rows):
+        #     self.ax[i] = self.fig.add_subplot(spec[i, :-1])  # Count & wave data
+        self.bx = self.fig.add_subplot(outer_gridspec[:, -1], projection='polar')  # Polar L-MLT plot.
         return
     
     def _plot_labels(self, date):
@@ -253,6 +273,13 @@ class Summary:
             ax.plot(self.hr['Time'], self.hr['Col_counts'][:, i])
         ax.set_xlim(time_range)
         ax.set_yscale('log')
+        hr_idx = np.where(
+            (self.hr['Time']>time_range[0]) & 
+            (self.hr['Time']<=time_range[1])
+            )[0]
+        time_correction = round(self.hr["Count_Time_Correction"][hr_idx].mean())
+        ax.text(0.99, 0.99, f'Time correction={time_correction} s', va='top', ha='right', 
+            c='k', transform=ax.transAxes)
         return
 
     def _clear_plot(self):
