@@ -268,8 +268,7 @@ class Summary:
             tick_list.append(self.hr[val][i_min_time].round(2).astype(str))
             
         # Cast np.array as strings so that it can insert the time string.
-        tick_list = np.insert(tick_list, 0, 
-            self.hr['Time'][i_min_time].strftime("%H:%M:%S"))
+        tick_list.insert(0, self.hr['Time'][i_min_time].strftime("%H:%M:%S"))
         return "\n".join(tick_list)
 
     def _plot_firebird(self, ax, time_range):
