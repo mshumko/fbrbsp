@@ -272,7 +272,13 @@ class Summary:
             (self.hr['Time']>time_range[0]) & 
             (self.hr['Time']<=time_range[1])
             )[0]
-        time_correction = round(self.hr["Count_Time_Correction"][hr_idx].mean())
+        try:
+            time_correction = round(self.hr["Count_Time_Correction"][hr_idx].mean())
+        except ValueError as err:
+            if 'cannot convert float NaN to integer' == str(err):
+                time_correction = 'NaN'
+            else:
+                raise
         ax.text(0.99, 0.99, f'Time correction={time_correction} s', va='top', ha='right', 
             c='k', transform=ax.transAxes)
         ax.legend(loc='lower right', fontsize='small')
