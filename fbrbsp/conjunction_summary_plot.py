@@ -57,7 +57,7 @@ class Summary:
             self._plot_electric_field(self.ax[1], time_range)
             self._plot_firebird(self.ax[-1], time_range)
             self._plot_orbit(self.bx, time_range)
-            self._plot_L_intersection(self.ax[-1])
+            self._plot_L_intersection(self.ax[-1], time_range)
 
             self._plot_labels(time_range[0])
             self._rbsp_magephem_labels(self.ax[1], time_range)
@@ -171,34 +171,30 @@ class Summary:
         if not hasattr(self, 'hr'):
             raise ValueError('Need to call the _plot_firebird() method first.')
         
-        hr_idx = np.where(
-            (self.hr['Time']>time_range[0]) & 
-            (self.hr['Time']<=time_range[1]) &
-            (self.hr['McIlwainL'] < max_L)
-            )[0]
-        fb_mlt = self.hr['MLT'][hr_idx]
-        fb_L = self.hr['McIlwainL'][hr_idx]
-
-        rb_idx = np.where(
-            (self.rbsp_magephem['epoch']>time_range[0]) & 
-            (self.rbsp_magephem['epoch']<=time_range[1])
-            )[0]
-        ida = np.where(self.rbsp_xlabels['L'].upper() == self.rbsp_magephem['L_Label'])[0]
-        rb_mlt = self.rbsp_magephem[self.rbsp_xlabels['MLT']][rb_idx]
-        rb_L = self.rbsp_magephem['L'][rb_idx, ida]
-        self.mean_rb_L = rb_L.mean()
+        fb_L, fb_mlt = self._fb_filtered_magephem(time_range)
+        rb_L, rb_mlt = self._rbsp_filtered_magephem(time_range)
         
         ax.plot((2*np.pi/24)*fb_mlt, fb_L, 'k')
         ax.plot((2*np.pi/24)*rb_mlt, rb_L, marker='X', color='r')
         return
     
-    def _plot_L_intersection(self, ax):
+    def _plot_L_intersection(self, ax, time_range):
         """
         Plot a vertical black line in the FIREBIRD data panel at the time when
         the FIREBIRD's L-shell is closest to RBSP's L-shell.
         """
-        idx = np.nanargmin(np.abs(self.mean_rb_L-self.hr['McIlwainL']))
-        ax.axvline(self.hr['Time'][idx], c='k', ls=':')
+        rb_L, _ = self._rbsp_filtered_magephem(time_range)
+        median_rb_L = np.nanmedian(rb_L)
+
+        hr_idx = np.where(
+            (self.hr['Time']>time_range[0]) & 
+            (self.hr['Time']<=time_range[1])
+            )[0]
+        _hr_time = self.hr['Time'][hr_idx]
+        _hr_L = self.hr['McIlwainL'][hr_idx]
+
+        idx = np.nanargmin(np.abs(median_rb_L-_hr_L))
+        ax.axvline(_hr_time[idx], c='k', ls=':')
         return
     
     def _rbsp_magephem_labels(self, _ax, time_range):
@@ -299,7 +295,27 @@ class Summary:
             for j in range(self.n_cols):
                 self.ax[i,j].clear()
         return
-        
+
+    def _fb_filtered_magephem(self, time_range, max_L=10):
+        hr_idx = np.where(
+            (self.hr['Time']>time_range[0]) & 
+            (self.hr['Time']<=time_range[1]) &
+            (self.hr['McIlwainL'] < max_L)
+            )[0]
+        fb_mlt = self.hr['MLT'][hr_idx]
+        fb_L = self.hr['McIlwainL'][hr_idx]
+        return fb_L, fb_mlt
+
+    def _rbsp_filtered_magephem(self, time_range):
+        rb_idx = np.where(
+            (self.rbsp_magephem['epoch']>time_range[0]) & 
+            (self.rbsp_magephem['epoch']<=time_range[1])
+            )[0]
+        ida = np.where(self.rbsp_xlabels['L'].upper() == self.rbsp_magephem['L_Label'])[0]
+        rb_mlt = self.rbsp_magephem[self.rbsp_xlabels['MLT']][rb_idx]
+        rb_L = self.rbsp_magephem['L'][rb_idx, ida]
+        return rb_L, rb_mlt
+
 if __name__ == '__main__':
     for fb_id in [3, 4]:
         for rbsp_id in ['A', 'B']:
