@@ -232,9 +232,7 @@ class Summary:
                     self.rbsp_magephem[val][i_min_time].round(2).astype(str)
                     )
             
-        # Cast np.array as strings so that it can insert the time string.
-        tick_list = np.insert(tick_list, 0, 
-            self.rbsp_magephem['epoch'][i_min_time].strftime("%H:%M:%S"))
+        tick_list.insert(0, self.rbsp_magephem['epoch'][i_min_time].strftime("%H:%M:%S"))
         return "\n".join(tick_list)
 
     def _fb_magephem_labels(self, _ax, time_range):
@@ -262,8 +260,6 @@ class Summary:
         tick_list = []
         for val in self.fb_xlabels.values():
             tick_list.append(self.hr[val][i_min_time].round(2).astype(str))
-            
-        # Cast np.array as strings so that it can insert the time string.
         tick_list.insert(0, self.hr['Time'][i_min_time].strftime("%H:%M:%S"))
         return "\n".join(tick_list)
 
