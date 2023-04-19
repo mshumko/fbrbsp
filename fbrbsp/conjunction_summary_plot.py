@@ -57,6 +57,7 @@ class Summary:
             self._plot_electric_field(self.ax[1], time_range)
             self._plot_firebird(self.ax[-1], time_range)
             self._plot_orbit(self.bx, time_range)
+            self._plot_L_intersection(self.ax[-1])
 
             self._plot_labels(time_range[0])
             self._rbsp_magephem_labels(self.ax[1], time_range)
@@ -185,9 +186,19 @@ class Summary:
         ida = np.where(self.rbsp_xlabels['L'].upper() == self.rbsp_magephem['L_Label'])[0]
         rb_mlt = self.rbsp_magephem[self.rbsp_xlabels['MLT']][rb_idx]
         rb_L = self.rbsp_magephem['L'][rb_idx, ida]
+        self.mean_rb_L = rb_L.mean()
         
         ax.plot((2*np.pi/24)*fb_mlt, fb_L, 'k')
         ax.plot((2*np.pi/24)*rb_mlt, rb_L, marker='X', color='r')
+        return
+    
+    def _plot_L_intersection(self, ax):
+        """
+        Plot a vertical black line in the FIREBIRD data panel at the time when
+        the FIREBIRD's L-shell is closest to RBSP's L-shell.
+        """
+        idx = np.nanargmin(np.abs(self.mean_rb_L-self.hr['McIlwainL']))
+        ax.axvline(self.hr['Time'][idx], c='k', ls=':')
         return
     
     def _rbsp_magephem_labels(self, _ax, time_range):
