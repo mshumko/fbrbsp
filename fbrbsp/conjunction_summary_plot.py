@@ -279,6 +279,8 @@ class Summary:
         except ValueError as err:
             if 'cannot convert float NaN to integer' == str(err):
                 time_correction = 'NaN'
+            elif 'All-NaN slice encountered' == str(err):
+                time_correction = 'NaN'
             else:
                 raise
         ax.text(0.99, 0.99, f'Time correction={time_correction} s', va='top', ha='right', 
