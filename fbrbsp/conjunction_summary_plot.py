@@ -277,9 +277,9 @@ class Summary:
         try:
             time_correction = round(self.hr["Count_Time_Correction"][hr_idx].mean())
         except ValueError as err:
-            if 'cannot convert float NaN to integer' == str(err):
+            if 'cannot convert float NaN to integer' in str(err):
                 time_correction = 'NaN'
-            elif 'All-NaN slice encountered' == str(err):
+            elif 'All-NaN slice encountered' in str(err):
                 time_correction = 'NaN'
             else:
                 raise
