@@ -193,7 +193,13 @@ class Summary:
         _hr_time = self.hr['Time'][hr_idx]
         _hr_L = self.hr['McIlwainL'][hr_idx]
 
-        idx = np.nanargmin(np.abs(median_rb_L-_hr_L))
+        try:
+            idx = np.nanargmin(np.abs(median_rb_L-_hr_L))
+        except ValueError as err:
+            if 'All-NaN slice encountered' in str(err):
+                return
+            else:
+                raise
         ax.axvline(_hr_time[idx], c='k', ls=':')
         return
     
