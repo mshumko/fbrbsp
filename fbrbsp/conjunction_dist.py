@@ -26,6 +26,7 @@ class Conjunction_Dist:
         for self.fb_id in [3, 4]:
             for self.rbsp_id in ['A', 'B']:
                 file_name = f'FU{self.fb_id}_RBSP{self.rbsp_id.upper()}_conjunctions_dL10_dMLT10_final_hr.csv'
+                print(f'Processing {file_name}.')
                 catalog_path = fbrbsp.config['here'].parent / 'data' / file_name
                 self.catalog = pd.read_csv(catalog_path)
                 self.catalog['startTime'] = pd.to_datetime(self.catalog['startTime'])
@@ -50,9 +51,9 @@ class Conjunction_Dist:
             # current_date = row['startTime'].date()
 
             L, MLT, minMLT = self._dmlt_crossing(time_range)
-            self.L = np.append(self.L, None)
-            self.MLT = np.append(self.MLT, None)
-            self.minMLT = np.append(self.minMLT, None)
+            self.L = np.append(self.L, L)
+            self.MLT = np.append(self.MLT, MLT)
+            self.minMLT = np.append(self.minMLT, minMLT)
         return
     
     def _dmlt_crossing(self, time_range):
@@ -107,9 +108,9 @@ class Conjunction_Dist:
  
 if __name__ == '__main__':
     c = Conjunction_Dist()
-    # try:
-    c.loop()
-    # finally:
-    c.plot()
-    plt.tight_layout()
-    plt.show()
+    try:
+        c.loop()
+    finally:
+        c.plot()
+        plt.tight_layout()
+        plt.show()
