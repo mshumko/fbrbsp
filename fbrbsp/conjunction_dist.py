@@ -34,15 +34,20 @@ class Conjunction_Dist:
                 self._process_file()
 
     def _process_file(self):
-        current_date = datetime.min.date()
+        # current_date = datetime.min.date()
 
-        for _, row in self.catalog.iterrows():
-            time_range = (row['startTime'],row['endTime'])
-            if current_date != row['startTime'].date():
-                self.hr = Hires(self.fb_id, row['startTime'].date()).load()
-                self.rbsp = MagEphem(self.rbsp_id, 't89d', time_range).load()
-                self.rbsp = self.rbsp[list(self.rbsp.keys())[0]]
-                current_date = row['startTime'].date()
+        for i, row in self.catalog.iterrows():
+            print(f'{i}/{self.catalog.shape[0]} Conjunction', end='\r')
+            time_range = [row['startTime'],row['endTime']]
+            if (time_range[1] - time_range[0]).total_seconds() < 60:
+                # This ensures that at least one RBSP MagEpehem timestamp
+                # exists in time_range.
+                time_range[1] += timedelta(minutes=1)
+            # if current_date != row['startTime'].date():
+            self.hr = Hires(self.fb_id, row['startTime'].date()).load()
+            self.rbsp = MagEphem(self.rbsp_id, 't89d', time_range)
+            self.rbsp.load()
+            # current_date = row['startTime'].date()
 
             L, MLT, minMLT = self._dmlt_crossing(time_range)
             self.L = np.append(self.L, None)
@@ -71,8 +76,11 @@ class Conjunction_Dist:
                 return
             else:
                 raise
-        dMLT = fbrbsp.dmlt.dmlt(np.nanmedian(rb_MLT), self.hr['MLT'][idx])
-        return median_rb_L, np.nanmedian(rb_MLT), dMLT
+        dMLT = fbrbsp.dmlt.dmlt(
+            np.array([np.nanmedian(rb_MLT)]), 
+            np.array([self.hr['MLT'][idx]])
+            )
+        return median_rb_L, np.nanmedian(rb_MLT), dMLT[0]
 
     def plot(self):
         fig, ax = plt.subplots(subplot_kw={'projection': 'polar'}, figsize=(5.5,5))
@@ -82,7 +90,7 @@ class Conjunction_Dist:
         _dial.draw_earth()
         _dial._plot_params()
         s = ax.scatter(self.MLT, self.L, c=self.minMLT)
-        plt.colorbar(s, label=f'Minimum ${{\Delta}}$MLT')
+        plt.colorbar(s, label=f'Minimum $\Delta MLT$')
         ax.set_title('FIREBIRD-II/RBSP Conjunctions')
         return
     
@@ -91,8 +99,8 @@ class Conjunction_Dist:
             (self.rbsp['epoch']>time_range[0]) & 
             (self.rbsp['epoch']<=time_range[1])
             )[0]
-        ida = np.where(self.rbsp_xlabels['L'].upper() == self.rbsp['L_Label'])[0]
-        rb_mlt = self.rbsp[self.rbsp_xlabels['MLT']][rb_idx]
+        ida = np.where('L_90' == self.rbsp['L_Label'])[0]
+        rb_mlt = self.rbsp['EDMAG_MLT'][rb_idx]
         rb_L = self.rbsp['L'][rb_idx, ida]
         return rb_L, rb_mlt
 
