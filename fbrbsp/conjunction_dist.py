@@ -53,7 +53,7 @@ class Conjunction_Dist:
             L, MLT, minMLT = self._dmlt_crossing(time_range)
             self.L = np.append(self.L, L)
             self.MLT = np.append(self.MLT, MLT)
-            self.minMLT = np.append(self.minMLT, minMLT)
+            self.minMLT = np.append(self.minMLT, np.abs(minMLT))
         return
     
     def _dmlt_crossing(self, time_range):
@@ -90,7 +90,7 @@ class Conjunction_Dist:
         ax.grid(False) 
         _dial.draw_earth()
         _dial._plot_params()
-        s = ax.scatter(self.MLT, self.L, c=self.minMLT, vmin=-2, vmax=2)
+        s = ax.scatter(self.MLT, self.L, c=self.minMLT, vmin=0, vmax=2)
         plt.colorbar(s, label=f'Minimum $\Delta MLT$')
         ax.set_title('FIREBIRD-II/RBSP Conjunctions')
         return
