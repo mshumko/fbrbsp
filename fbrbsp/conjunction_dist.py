@@ -90,7 +90,7 @@ class Conjunction_Dist:
         ax.grid(False) 
         _dial.draw_earth()
         _dial._plot_params()
-        s = ax.scatter(self.MLT, self.L, c=self.minMLT)
+        s = ax.scatter(self.MLT, self.L, c=self.minMLT, vmin=-2, vmax=2)
         plt.colorbar(s, label=f'Minimum $\Delta MLT$')
         ax.set_title('FIREBIRD-II/RBSP Conjunctions')
         return
