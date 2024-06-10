@@ -69,9 +69,9 @@ for ax_i in ax.flatten():
 
 fig.suptitle(f'Wave Burst Availability during {RB}-{FU} conjunctions')
 scatter_objects = np.zeros_like(ax)
-scatter_objects[0, 0] = ax[0, 0].scatter(data['MLTrb'],data['Lrb'],c=data['EMFb'],vmin=0,vmax=np.nanmax(data['EMFb'])/2)
-scatter_objects[0, 1] = ax[0, 1].scatter(data['MLTrb'],data['Lrb'],c=b1b,vmin=np.nanmin(b1b),vmax=np.nanmax(b1b)/1.5)
-scatter_objects[1, 0] = ax[1, 0].scatter(data['MLTrb'],data['Lrb'],c=b2b,vmin=np.nanmin(b2b),vmax=np.nanmax(b2b)/2)
+scatter_objects[0, 0] = ax[0, 0].scatter(data['MLTrb'],data['Lrb'],c=data['EMFb']/60,vmin=0,vmax=np.nanmax(data['EMFb'])/2/60)
+scatter_objects[0, 1] = ax[0, 1].scatter(data['MLTrb'],data['Lrb'],c=b1b/60,vmin=np.nanmin(b1b)/60,vmax=np.nanmax(b1b)/1.5/60)
+scatter_objects[1, 0] = ax[1, 0].scatter(data['MLTrb'],data['Lrb'],c=b2b/60,vmin=np.nanmin(b2b)/60,vmax=np.nanmax(b2b)/2/60)
 scatter_objects[1, 1] = ax[1, 1].scatter(data['MLTrb'],data['Lrb'],c=logv,vmin=np.min(logv),vmax=np.max(logv))
 
 titles = [
@@ -81,9 +81,9 @@ titles = [
     'Peak Amplitude of lower-band chorus'
 ]
 colorbar_labels = [
-    '[sec]',
-    '[sec]',
-    '[sec]',
+    '[min]',
+    '[min]',
+    '[min]',
     '[log10(pT^2/Hz)]'
 ]
 _z = zip(ax.flatten(), scatter_objects.flatten(), string.ascii_uppercase, titles, colorbar_labels)
