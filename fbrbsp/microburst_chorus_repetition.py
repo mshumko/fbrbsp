@@ -15,7 +15,7 @@ rbsp_id = 'a'
 dL = 1
 dMLT = 1
 microburst_version = 5
-fb_time_window_sec = 2*60
+fb_time_window_sec = 4*60
 dt = pd.Timedelta(seconds=fb_time_window_sec)
 
 conjunction_name = f'c_rp_FU{fb_id}_RBSP{rbsp_id.upper()}.csv'
@@ -51,24 +51,55 @@ for i, conjunction in conjunctions.iterrows():
     conjunctions.loc[i, 'median_microburst_repetition'] = microburst_dt.median()
     conjunctions.loc[i, 'std_microburst_repetition'] = microburst_dt.std()
 
-fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-ax[0].scatter(conjunctions['n_chorus'], conjunctions['n_microbursts'])
-ax[0].plot(np.linspace(0, ax[0].get_xlim()[1]), np.linspace(0, ax[0].get_xlim()[1]))
-ax[0].set_xlabel('n_chorus')
-ax[0].set_ylabel('n_microbursts')
+fig, ax = plt.subplots()
+ax.scatter(
+    conjunctions['median_chorus_repetition'], 
+    conjunctions['median_microburst_repetition'],
+    c='k'
+    )
+plt.suptitle(f'FU-{fb_id} | RBSP-{rbsp_id.upper()}\nMedian chorus-microburst repetition rate')
+ax.set_xlabel('Chorus repetition [sec]')
+ax.set_ylabel('Microburst repetition [sec]')
+max_repetition = np.max(np.concatenate((ax.get_xlim(), ax.get_ylim())))
+ax.set_xlim(1E-1, max_repetition)
+ax.set_ylim(1E-1, max_repetition)
+ax.set_yscale('log')
+ax.set_xscale('log')
 
-ax[1].scatter(conjunctions['median_chorus_repetition'], conjunctions['median_microburst_repetition'])
-ax[1].plot(np.linspace(0, ax[1].get_xlim()[1]), np.linspace(0, ax[1].get_xlim()[1]))
-ax[1].set_xlabel('median_chorus_repetition')
-ax[1].set_ylabel('median_microburst_repetition')
+ax.fill_between(
+    np.linspace(0, max_repetition), 
+    np.linspace(0, max_repetition), 
+    max_repetition,
+    color='blue', 
+    alpha=0.2
+    )
+ax.text(
+    0.02, 
+    0.98, 
+    'More chorus than microbursts', 
+    color='k', 
+    transform=ax.transAxes, 
+    va='top', 
+    fontsize=12
+    )
 
-plt.suptitle(f'Chorus-Microburst repetition rate | FU-{fb_id} | RBSP-{rbsp_id.upper()}')
+ax.fill_between(
+    np.linspace(0, max_repetition), 
+    0, 
+    np.linspace(0, max_repetition),
+    color='orange', 
+    alpha=0.2
+    )
+ax.text(
+    0.98, 
+    0.02, 
+    'More microbursts than chorus', 
+    color='k', 
+    transform=ax.transAxes, 
+    va='bottom', 
+    ha='right', 
+    fontsize=12
+    )
+
 plt.tight_layout()
-
-for ax_i in ax:
-    ax_i.set_xlim(0, None)
-    ax_i.set_ylim(0, None)
-    # ax_i.axis('equal')
-
 plt.show()
-pass
